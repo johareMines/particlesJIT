@@ -1,7 +1,4 @@
 from simulation import Simulation
-import constants
-import random
-from particle import Particles
 import cProfile
 import pstats
 

@@ -1,5 +1,5 @@
 import constants
-from particle import Particles
+from particles import Particles
 import pygame
 import time
 import sys
@@ -136,9 +136,9 @@ class Simulation:
     def run(self):
         # Create particles
         Particles.__particleAttractions = Particles.setAttractions()
-        positions = np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]
-        velocities = np.zeros((constants.MAX_PARTICLES, 2))
-        types = np.random.randint(0, len(Particles.particleTypeColors), constants.MAX_PARTICLES)
+        Particles.positions = np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]
+        Particles.velocities = np.zeros((constants.MAX_PARTICLES, 2))
+        Particles.types = np.random.randint(0, len(Particles.particleTypeColors), constants.MAX_PARTICLES)
         
         
 
@@ -166,16 +166,16 @@ class Simulation:
 
             constants.SCREEN.fill((0, 0, 0))  # Clear the screen
             
-            
-            positions, velocities = Particles.updateParticles(positions, velocities, types, Particles.__particleAttractions, Particles.MIN_INFLUENCE_DIST, Particles.MAX_INFLUENCE_DIST, Particles.CURRENT_PARTICLE_COUNT)
+            inputPos, inputVel, inputTypes = Particles.getParticleInfo()
+            Particles.positions, Particles.velocities = Particles.updateParticles(inputPos, inputVel, inputTypes, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
             
             # Draw circle at mouse position
             # self.drawMouseCircle()
             
             for i in range(Particles.CURRENT_PARTICLE_COUNT):
                 color = pygame.Color(0)
-                color.hsva = (types[i] * (360 // len(Particles.particleTypeColors)), 100, 100, 100)
-                pygame.draw.circle(constants.SCREEN, color, (positions[i, 0], positions[i, 1]), 2)
+                color.hsva = (Particles.types[i] * (360 // len(Particles.particleTypeColors)), 100, 100, 100)
+                pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), 2)
             
             Particles.spawnNewParticle()
             
