@@ -11,11 +11,12 @@ SCREEN_HEIGHT = None
 SCREEN = None
     
 
-START_PARTICLES = 1500
+START_PARTICLES = 800
 MAX_PARTICLES = 2000
     
     
 FRICTION = 0.85
+K = 0.05
     
     
 class displays(Enum):

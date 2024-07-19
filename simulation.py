@@ -7,6 +7,9 @@ import psutil
 import threading
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
+import uuid
+import json
+import os
 
 class Simulation:
     __instance = None
@@ -24,21 +27,111 @@ class Simulation:
             constants.SCREEN = pygame.display.set_mode((constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT), pygame.FULLSCREEN | pygame.RESIZABLE, display=constants.DISPLAY.value)
             
             self.clock = pygame.time.Clock()
-            self.frame_times = []
-            self.frame_print_time = time.time()
 
-            self.performanceMonitor = PerformanceMonitor(constants.MONITOR_INTERVAL) # Interval in seconds
-            self.performanceMonitor.start()
 
-            # Event to handle killing thread on program end
-            self.velThreadStopEvent = threading.Event()
-                
+            # Map numkeys to attraction value saves
+            self.numberKeyMappings = {
+                pygame.K_0: 0,
+                pygame.K_1: 1,
+                pygame.K_2: 2,
+                pygame.K_3: 3,
+                pygame.K_4: 4,
+                pygame.K_5: 5,
+                pygame.K_6: 6,
+                pygame.K_7: 7,
+                pygame.K_8: 8,
+                pygame.K_9: 9
+            }
+
+            # self.frame_times = []
+            # self.frame_print_time = time.time()
+
+            # self.performanceMonitor = PerformanceMonitor(constants.MONITOR_INTERVAL) # Interval in seconds
+            # self.performanceMonitor.start()
+
+            # # Event to handle killing thread on program end
+            # self.velThreadStopEvent = threading.Event()
+
+    @staticmethod          
+    def get_save_file_list(directory):
+        # List files in the directory
+        files = os.listdir(directory)
+        fileList = []
+
+        # Check if there is exactly one file
+        for i in range(len(files)):
+            fileList.append(files[i])
+        
+        return fileList
+    
+    @staticmethod
+    def load_attractions_from_save(filePath):
+        if not os.path.exists(filePath):
+            raise FileNotFoundError(f"No such file: '{filePath}'")
+        
+        # Read the JSON file
+        with open(filePath, 'r') as json_file:
+            data = json.load(json_file)
+        
+        # Convert
+        array = np.array(data)
+        
+        return array
+    
+    @staticmethod
+    def save_attractions_to_JSON():
+        # Save forces array to new JSON file
+        jsonList = Particles.__particleAttractions.tolist()
+                    
+        # Time based UUID
+        id = uuid.uuid1()
+
+
+        # Define the directory and file path
+        directory = 'SavedAttractions'
+        file_path = os.path.join(directory, f'{id}.json')
+
+        # Ensure the directory exists
+        os.makedirs(directory, exist_ok=True)
+
+        # Write to the JSON file
+        with open(file_path, 'w') as json_file:
+            # data = {"example": "data"}  # Replace this with your actual data
+            json.dump(jsonList, json_file)
+
+            print(f"Data saved to {file_path}")
+
     @staticmethod
     def get_instance():
         # Static method to get the singleton instance
         if Simulation.__instance is None:
             Simulation.__instance = Simulation()
         return Simulation.__instance
+
+    
+
+    # Function to handle key press
+    def handle_key_press(self, key):
+        if key in self.numberKeyMappings:
+            self.load_save_file(self.numberKeyMappings[key])
+        else:
+            print(f"Invalid key: {key}")
+        
+    def load_save_file(self, index):
+        directory = 'SavedAttractions/LoadDir'
+        saveFiles = self.get_save_file_list(directory)
+
+        if index >= len(saveFiles):
+            return
+        
+        loadFile = os.path.join(directory, saveFiles[index])
+
+        newAttractions = self.load_attractions_from_save(loadFile)
+
+        Particles.__particleAttractions = newAttractions
+
+        
+
 
     def run(self):
         # Create particles
@@ -47,20 +140,34 @@ class Simulation:
         velocities = np.zeros((constants.MAX_PARTICLES, 2))
         types = np.random.randint(0, len(Particles.particleTypeColors), constants.MAX_PARTICLES)
         
+        
+
+        
+
         running = True
         while running:
-            start_time = time.time() # For framerate calculation
+            # start_time = time.time() # For framerate calculation
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
-            
+                    if event.key == pygame.K_r:
+                        Particles.__particleAttractions = Particles.setAttractions()
+                    if event.key == pygame.K_s:
+                        self.save_attractions_to_JSON()
+
+                    # Load saved values
+                    elif event.key in self.numberKeyMappings:
+                        self.handle_key_press(event.key)
+                        
+
+
             constants.SCREEN.fill((0, 0, 0))  # Clear the screen
             
             
-            positions, velocities = Particles.updateParticles(positions, velocities, types, Particles.__particleAttractions, Particles.MIN_INFLUENCE_DIST, Particles.MAX_INFLUENCE_DIST, 0.85, 0.05, Particles.CURRENT_PARTICLE_COUNT)
+            positions, velocities = Particles.updateParticles(positions, velocities, types, Particles.__particleAttractions, Particles.MIN_INFLUENCE_DIST, Particles.MAX_INFLUENCE_DIST, Particles.CURRENT_PARTICLE_COUNT)
             
             # Draw circle at mouse position
             # self.drawMouseCircle()
@@ -76,17 +183,17 @@ class Simulation:
             
             # Calc framerate
             self.clock.tick(60)  # FPS Limit
-            end_time = time.time()
-            frame_time = end_time - start_time
-            self.frame_times.append(frame_time)
-            if len(self.frame_times) > 70:
-                self.frame_times.pop(0)
-            self.calculateFramerate()
+            # end_time = time.time()
+            # frame_time = end_time - start_time
+            # self.frame_times.append(frame_time)
+            # if len(self.frame_times) > 70:
+            #     self.frame_times.pop(0)
+            # self.calculateFramerate()
             
             
             
-        self.performanceMonitor.stop()
-        self.performanceMonitor.join()
+        # self.performanceMonitor.stop()
+        # self.performanceMonitor.join()
 
         
         pygame.quit()
@@ -119,7 +226,7 @@ class PerformanceMonitor(threading.Thread):
         while not self.stopped.wait(self.interval):
             self.monitorCPU()
             self.monitorMemory()
-            self.monitorObjects()
+            # self.monitorObjects()
 
     def monitorCPU(self):
         cpu_percent = self.process.cpu_percent()

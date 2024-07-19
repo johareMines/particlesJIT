@@ -7,7 +7,7 @@ import constants
 # Methods for all particles
 class Particles():
     __particleAttractions = None
-    MAX_INFLUENCE_DIST = 150
+    MAX_INFLUENCE_DIST = 250
     MIN_INFLUENCE_DIST = 40
     CURRENT_PARTICLE_COUNT = constants.START_PARTICLES
     
@@ -36,11 +36,8 @@ class Particles():
             Particles.spawnIteration -= 1
     
     
-    
-    # WIDTH = constants.SCREEN_WIDTH
-    # HEIGHT = constants.SCREEN_HEIGHT
     @jit(nopython=True)
-    def updateParticles(positions, velocities, types, attractions, minDist, maxDist, FRICTION, K, currentParticleCount):
+    def updateParticles(positions, velocities, types, attractions, minDist, maxDist, currentParticleCount):
         new_positions = np.empty_like(positions)
         new_velocities = np.empty_like(velocities)
         
@@ -70,12 +67,12 @@ class Particles():
                         dir_x, dir_y = dir_x / dist, dir_y / dist # Normalize dir vector
                         other_type = types[j]
                         if dist < minDist:
-                            force = abs(attractions[p_type, other_type]) * -3 * (1 - dist / minDist) * K
+                            force = abs(attractions[p_type, other_type]) * -3 * (1 - dist / minDist) * constants.K
                             totForceX += dir_x * force
                             totForceY += dir_y * force
                             
                         if dist < maxDist:
-                            force = attractions[p_type, other_type] * (1 - dist / maxDist) * K
+                            force = attractions[p_type, other_type] * (1 - dist / maxDist) * constants.K
                             totForceX += dir_x * force
                             totForceY += dir_y * force
             
@@ -83,8 +80,8 @@ class Particles():
             new_vel_y = vel_y + totForceY
             new_pos_x = (pos_x + new_vel_x) % constants.SCREEN_WIDTH
             new_pos_y = (pos_y + new_vel_y) % constants.SCREEN_HEIGHT
-            new_vel_x *= FRICTION
-            new_vel_y *= FRICTION
+            new_vel_x *= constants.FRICTION
+            new_vel_y *= constants.FRICTION
             
             new_positions[i] = new_pos_x, new_pos_y
             new_velocities[i] = new_vel_x, new_vel_y

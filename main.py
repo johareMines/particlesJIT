@@ -5,7 +5,7 @@ from particle import Particles
 import cProfile
 import pstats
 
-def runSimulation():
+def runSimulation(): 
     simulation = Simulation.get_instance()
     
     simulation.run()
@@ -16,5 +16,5 @@ def runSimulation():
 if __name__ == "__main__":
     cProfile.run('runSimulation()', "funcStats")
     
-    p = pstats.Stats("funcStats")
-    p.sort_stats("cumulative").print_stats(150)
+    # p = pstats.Stats("funcStats")
+    # p.sort_stats("cumulative").print_stats(150)
