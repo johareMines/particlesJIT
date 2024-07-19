@@ -138,7 +138,7 @@ class Simulation:
         Particles.__particleAttractions = Particles.setAttractions()
         Particles.positions = np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]
         Particles.velocities = np.zeros((constants.MAX_PARTICLES, 2))
-        Particles.types = np.random.randint(0, len(Particles.particleTypeColors), constants.MAX_PARTICLES)
+        Particles.types = np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES)
         
         
 
@@ -172,10 +172,8 @@ class Simulation:
             # Draw circle at mouse position
             # self.drawMouseCircle()
             
-            for i in range(Particles.CURRENT_PARTICLE_COUNT):
-                color = pygame.Color(0)
-                color.hsva = (Particles.types[i] * (360 // len(Particles.particleTypeColors)), 100, 100, 100)
-                pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), 2)
+            Particles.draw()
+            
             
             Particles.spawnNewParticle()
             

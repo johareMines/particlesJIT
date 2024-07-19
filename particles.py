@@ -2,6 +2,7 @@ import numpy as np
 from enum import Enum
 from numba import jit
 import constants
+import pygame
 
 
 # Methods for all particles
@@ -13,16 +14,21 @@ class Particles():
 
     positions, velocities, types = None, None, None
 
-    @staticmethod
-    def getParticleInfo():
-        return (Particles.positions, Particles.velocities, Particles.types)
+    colors = ((245, 41, 170), # Pink
+                (112, 215, 255), # Cyan
+                (156, 174, 169), # GREY
+                (255, 0, 0),#(244, 224, 77), # Red
+                (19, 138, 54),#(112, 5, 72), # Purple
+                (224, 142, 0) # Orange
+                 )
+
     
     @staticmethod
     def setAttractions():
-        attractions = np.random.uniform(0.2, 1, (len(Particles.particleTypeColors), len(Particles.particleTypeColors)))
+        attractions = np.random.uniform(0.2, 1, (constants.PARTICLE_TYPE_COUNT, constants.PARTICLE_TYPE_COUNT))
     
         # Make some of the forces negative
-        mask = np.random.random((len(Particles.particleTypeColors), len(Particles.particleTypeColors))) < 0.5
+        mask = np.random.random((constants.PARTICLE_TYPE_COUNT, constants.PARTICLE_TYPE_COUNT)) < 0.5
         attractions[mask] *= -1
         
         print(f"Forces are {attractions}")
@@ -90,16 +96,25 @@ class Particles():
             
         return new_positions, new_velocities
     
+    @staticmethod
+    def draw():
+        for i in range(Particles.CURRENT_PARTICLE_COUNT):
+            color = Particles.colors[Particles.types[i]]
+            pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), 2)
     
+    # @staticmethod
+    # class particleTypeColors(Enum):
+    #     PINK = (255, 130, 169)
+    #     TEAL = (44, 175, 201)
+    #     GREY = (156, 174, 169)
+    #     MAIZE = (244, 224, 77)
+    #     INDIGO = (84, 13, 110)
+    #     ORANGE = (224, 92, 21)
+
     
     @staticmethod
-    class particleTypeColors(Enum):
-        PINK = (255, 130, 169)
-        TEAL = (44, 175, 201)
-        GREY = (156, 174, 169)
-        MAIZE = (244, 224, 77)
-        INDIGO = (84, 13, 110)
-        ORANGE = (224, 92, 21)
+    def getParticleInfo():
+        return (Particles.positions, Particles.velocities, Particles.types)
         
     
     # @staticmethod
