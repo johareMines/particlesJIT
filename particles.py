@@ -11,9 +11,9 @@ class Particles():
     __particleAttractions = None
     CURRENT_PARTICLE_COUNT = constants.START_PARTICLES
     
-    spawnIteration, SPAWN_ITERATION = 100, 1000
+    spawnIteration, SPAWN_ITERATION = 100, 100
 
-    positions, velocities, types = None, None, None
+    positions, velocities, typesAndSizes = None, None, None
 
     colors = ((245, 41, 170), # Pink
                 (112, 215, 255), # Cyan
@@ -37,9 +37,23 @@ class Particles():
     
     @staticmethod
     def spawnNewParticle():
+        if Particles.CURRENT_PARTICLE_COUNT >= constants.MAX_PARTICLES:
+            print(f"Attempted to spawn particle when limit was reached")
+            return
+        
         if Particles.spawnIteration == 0:
-            newPos = np.array([constants.SCREEN_WIDTH // 2 + random.uniform(-10.0, 10.0), constants.SCREEN_HEIGHT // 2 + random.uniform(-10.0, 10.0)], dtype=np.float32)
-            print(f"Did spawn: Pos {Particles.positions} | Vel {Particles.velocities} | Types {Particles.types}")
+            newPos = np.array([constants.SCREEN_WIDTH // 2 + random.uniform(-10.0, 10.0), constants.SCREEN_HEIGHT // 2 + random.uniform(-10.0, 10.0)], dtype=np.float64)
+            Particles.positions[Particles.CURRENT_PARTICLE_COUNT] = newPos
+
+            newVel = np.array([0, 0], dtype=np.float32)
+            Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = newVel
+
+            newTypeAndSize = np.array([random.randint(0, constants.PARTICLE_TYPE_COUNT - 1), 2])
+            Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = newTypeAndSize
+
+            Particles.CURRENT_PARTICLE_COUNT += 1
+            
+            print(f"Did spawn: Pos {Particles.positions} | Vel {Particles.velocities} | TypesAndSizes {Particles.typesAndSizes}")
             # print(f"{}")
             Particles.spawnIteration = Particles.SPAWN_ITERATION
         else:
@@ -47,7 +61,7 @@ class Particles():
     
     
     @jit(nopython=True)
-    def updateParticles(positions, velocities, types, attractions, currentParticleCount):
+    def updateParticles(positions, velocities, typesAndSizes, attractions, currentParticleCount):
         new_positions = np.empty_like(positions)
         new_velocities = np.empty_like(velocities)
         
@@ -55,7 +69,8 @@ class Particles():
             totForceX, totForceY = 0.0, 0.0
             pos_x, pos_y = positions[i]
             vel_x, vel_y = velocities[i]
-            p_type = types[i]
+            p_type = typesAndSizes[i, 0]
+            p_size = typesAndSizes[i, 1]
             
             for j in range(currentParticleCount):
                 if i != j:
@@ -73,18 +88,22 @@ class Particles():
                         dir_y += constants.SCREEN_HEIGHT
                         
                     dist = np.sqrt(dir_x**2 + dir_y**2)
-                    if dist > 0:
-                        dir_x, dir_y = dir_x / dist, dir_y / dist # Normalize dir vector
-                        other_type = types[j]
-                        if dist < constants.MIN_PARTICLE_INFLUENCE:
-                            force = abs(attractions[p_type, other_type]) * -3 * (1 - dist / constants.MIN_PARTICLE_INFLUENCE) * constants.K
-                            totForceX += dir_x * force
-                            totForceY += dir_y * force
-                            
-                        if dist < constants.MAX_PARTICLE_INFLUENCE:
-                            force = attractions[p_type, other_type] * (1 - dist / constants.MAX_PARTICLE_INFLUENCE) * constants.K
-                            totForceX += dir_x * force
-                            totForceY += dir_y * force
+                    if dist > constants.MAX_PARTICLE_INFLUENCE or dist <= 0:
+                        continue
+
+                    
+                    dir_x, dir_y = dir_x / dist, dir_y / dist # Normalize dir vector
+                    other_type = typesAndSizes[j, 0]
+                    other_size = typesAndSizes[j, 1]
+                    if dist < constants.MIN_PARTICLE_INFLUENCE:
+                        force = (abs(attractions[p_type, other_type]) * -3 * other_size * (1 - dist / constants.MIN_PARTICLE_INFLUENCE) * constants.K) / p_size
+                        
+                    else:
+                        force = (attractions[p_type, other_type] * other_size * (1 - dist / constants.MAX_PARTICLE_INFLUENCE) * constants.K) / p_size
+                    
+                    totForceX += dir_x * force
+                    totForceY += dir_y * force
+                        
             
             new_vel_x = vel_x + totForceX
             new_vel_y = vel_y + totForceY
@@ -101,8 +120,8 @@ class Particles():
     @staticmethod
     def draw():
         for i in range(Particles.CURRENT_PARTICLE_COUNT):
-            color = Particles.colors[Particles.types[i]]
-            pygame.draw.circle(constants.SCREEN, color, (int(Particles.positions[i, 0]), int(Particles.positions[i, 1])), 2)
+            color = Particles.colors[Particles.typesAndSizes[i, 0]]
+            pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), Particles.typesAndSizes[i, 1])
     
     # @staticmethod
     # class particleTypeColors(Enum):
@@ -116,7 +135,7 @@ class Particles():
     
     @staticmethod
     def getParticleInfo():
-        return (Particles.positions, Particles.velocities, Particles.types)
+        return (Particles.positions, Particles.velocities, Particles.typesAndSizes)
         
     
     # @staticmethod

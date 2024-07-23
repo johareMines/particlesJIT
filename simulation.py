@@ -136,11 +136,12 @@ class Simulation:
     def run(self):
         # Create particles
         Particles.__particleAttractions = Particles.setAttractions()
-        Particles.positions = (np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]).astype(np.float32)
+        Particles.positions = (np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]).astype(np.float64)
         Particles.velocities = np.zeros((constants.MAX_PARTICLES, 2), dtype=np.float32)
-        Particles.types = np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES)
+        Particles.typesAndSizes = np.column_stack((np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES), np.full(constants.MAX_PARTICLES, 2)))
+        # Particles.typesAndSizes = np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES)
         
-        print(f"Initial values: Pos {Particles.positions} | Vel {Particles.velocities} | Types {Particles.types}")
+        print(f"Initial values: Pos {Particles.positions} | Vel {Particles.velocities} | TypesAndSizes {Particles.typesAndSizes}")
 
         
 
