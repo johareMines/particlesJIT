@@ -3,6 +3,7 @@ from enum import Enum
 from numba import jit
 import constants
 import pygame
+import random
 
 
 # Methods for all particles
@@ -10,7 +11,7 @@ class Particles():
     __particleAttractions = None
     CURRENT_PARTICLE_COUNT = constants.START_PARTICLES
     
-    spawnIteration, SPAWN_ITERATION = 100, 100
+    spawnIteration, SPAWN_ITERATION = 100, 1000
 
     positions, velocities, types = None, None, None
 
@@ -37,7 +38,8 @@ class Particles():
     @staticmethod
     def spawnNewParticle():
         if Particles.spawnIteration == 0:
-            print(f"Did spawn")
+            newPos = np.array([constants.SCREEN_WIDTH // 2 + random.uniform(-10.0, 10.0), constants.SCREEN_HEIGHT // 2 + random.uniform(-10.0, 10.0)], dtype=np.float32)
+            print(f"Did spawn: Pos {Particles.positions} | Vel {Particles.velocities} | Types {Particles.types}")
             # print(f"{}")
             Particles.spawnIteration = Particles.SPAWN_ITERATION
         else:
@@ -100,7 +102,7 @@ class Particles():
     def draw():
         for i in range(Particles.CURRENT_PARTICLE_COUNT):
             color = Particles.colors[Particles.types[i]]
-            pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), 2)
+            pygame.draw.circle(constants.SCREEN, color, (int(Particles.positions[i, 0]), int(Particles.positions[i, 1])), 2)
     
     # @staticmethod
     # class particleTypeColors(Enum):

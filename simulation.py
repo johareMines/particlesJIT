@@ -136,11 +136,11 @@ class Simulation:
     def run(self):
         # Create particles
         Particles.__particleAttractions = Particles.setAttractions()
-        Particles.positions = np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]
-        Particles.velocities = np.zeros((constants.MAX_PARTICLES, 2))
+        Particles.positions = (np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]).astype(np.float32)
+        Particles.velocities = np.zeros((constants.MAX_PARTICLES, 2), dtype=np.float32)
         Particles.types = np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES)
         
-        
+        print(f"Initial values: Pos {Particles.positions} | Vel {Particles.velocities} | Types {Particles.types}")
 
         
 
@@ -167,8 +167,10 @@ class Simulation:
             constants.SCREEN.fill((0, 0, 0))  # Clear the screen
             
             inputPos, inputVel, inputTypes = Particles.getParticleInfo()
-            Particles.positions, Particles.velocities = Particles.updateParticles(inputPos, inputVel, inputTypes, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
+            posUntrimmed, velUntrimmed = Particles.updateParticles(inputPos, inputVel, inputTypes, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
+            Particles.positions[:Particles.CURRENT_PARTICLE_COUNT], Particles.velocities[:Particles.CURRENT_PARTICLE_COUNT] = posUntrimmed[:Particles.CURRENT_PARTICLE_COUNT], velUntrimmed[:Particles.CURRENT_PARTICLE_COUNT]
             
+            # print(f"JUST UPDATED: Pos {Particles.positions} | Vel {Particles.velocities}")
             # Draw circle at mouse position
             # self.drawMouseCircle()
             
