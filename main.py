@@ -7,7 +7,6 @@ def runSimulation():
     
     simulation.run()
     
-    
 
     
 if __name__ == "__main__":

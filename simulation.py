@@ -136,20 +136,13 @@ class Simulation:
     def run(self):
         # Initialize empty np arrays
         Particles.__particleAttractions = Particles.setAttractions()
-        Particles.positions = np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]
-        Particles.velocities = np.zeros((constants.MAX_PARTICLES, 2))
-        Particles.types = np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES)
+        Particles.positions = (np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]).astype(np.float64)
+        Particles.velocities = np.zeros((constants.MAX_PARTICLES, 2), dtype=np.float32)
+        Particles.typesAndSizes = np.column_stack((np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES), np.full(constants.MAX_PARTICLES, 2)))
+        # Particles.typesAndSizes = np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES)
         
-        
-        # Generate random type and set initial size
-        pType = np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES)
+        print(f"Initial values: Pos {Particles.positions} | Vel {Particles.velocities} | TypesAndSizes {Particles.typesAndSizes}")
 
-        # typesAndSizes -> [pType, 2]
-        Particles.typesAndSizes = np.column_stack((pType, np.full(constants.MAX_PARTICLES, 2)))
-
-
-        # # Create a 2D array where each element is [x, 2]
-        # Particles.typesAndSizes = np.array([[x, 2] for x in pType])
         
 
         running = True
@@ -175,35 +168,44 @@ class Simulation:
             constants.SCREEN.fill((0, 0, 0))  # Clear the screen
             
             inputPos, inputVel, inputTypesAndSizes = Particles.getParticleInfo()
-            fusionCandidate = -1
-            Particles.positions, Particles.velocities, fusionCandidate = Particles.updateParticles(inputPos, inputVel, inputTypesAndSizes, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
+            posUntrimmed, velUntrimmed, fusionCandidate = Particles.updateParticles(inputPos, inputVel, inputTypesAndSizes, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
+            Particles.positions[:Particles.CURRENT_PARTICLE_COUNT], Particles.velocities[:Particles.CURRENT_PARTICLE_COUNT] = posUntrimmed[:Particles.CURRENT_PARTICLE_COUNT], velUntrimmed[:Particles.CURRENT_PARTICLE_COUNT]
             
+            # print(f"JUST UPDATED: Fusion {fusionCandidate} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
             
+
             if fusionCandidate >= 0:
-                print(f"Fucad {fusionCandidate}")
-                print(f"Old Pos {Particles.positions}, curCount {Particles.CURRENT_PARTICLE_COUNT}")
-                indices, avgPos, pType, newSize = Particles.detectCloseParticleIndices(fusionCandidate, Particles.positions, inputTypesAndSizes, Particles.CURRENT_PARTICLE_COUNT)
-                print(f"pre remove indices {indices} | newSize {newSize}")
+                # print(f"FUCAD")
+
+            
+            
+                indices, avgPos, newSize = Particles.detectCloseParticleIndices(fusionCandidate, Particles.positions, inputTypesAndSizes, Particles.CURRENT_PARTICLE_COUNT)
+
+                # print(f"pre remove indices {indices} | avgPos {avgPos} | newSize {newSize}")
 
                 # Commence fusion
                 if newSize > 0:
-                    print(f"IN NEW")
+                    # print(f"IN FUSION")
+
                     # Remove small particles
-                    Particles.positions, Particles.velocities, Particles.typesAndSizes = Particles.removeParticlesByIndices(indices)
-                    # print(f"Removed, pos is")
-                    for i in Particles.positions:
-                          print(i)
-                    # Particles.CURRENT_PARTICLE_COUNT -= len(indices)
+                    newPos, newVel, newTypesAndSizes, pType = Particles.removeParticlesByIndices(indices)
+                    # print(f"Out of remove by indices: Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(newPos)}) {newPos} | Vel ({len(newVel)}) {newVel} | TypeandSize ({len(newTypesAndSizes)}) {newTypesAndSizes}")
+            
 
-                    # print(f"Count is {Particles.CURRENT_PARTICLE_COUNT}")
-                    # # Add large particle
-                    # Particles.positions[Particles.CURRENT_PARTICLE_COUNT] = avgPos
-                    # Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = np.array([0, 0])
-                    # Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = np.array([pType, newSize])
+                    Particles.positions, Particles.velocities, Particles.typesAndSizes = newPos, newVel, newTypesAndSizes
 
-                    # Particles.CURRENT_PARTICLE_COUNT += 1
-                    
+                    # print(f"Out of remove by indices: Ptype: {pType} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
 
+
+                    # Add large particle
+                    Particles.positions[Particles.CURRENT_PARTICLE_COUNT] = avgPos
+                    Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = np.array([0, 0], dtype=np.float32)
+                    Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = np.array([pType, newSize])
+
+                    Particles.CURRENT_PARTICLE_COUNT += 1
+            
+            
+            
             # Draw circle at mouse position
             # self.drawMouseCircle()
             
