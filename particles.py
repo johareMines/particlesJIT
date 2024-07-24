@@ -53,8 +53,6 @@ class Particles():
 
             Particles.CURRENT_PARTICLE_COUNT += 1
             
-            print(f"Did spawn: Pos {Particles.positions} | Vel {Particles.velocities} | TypesAndSizes {Particles.typesAndSizes}")
-            # print(f"{}")
             Particles.spawnIteration = Particles.SPAWN_ITERATION
         else:
             Particles.spawnIteration -= 1
@@ -102,8 +100,8 @@ class Particles():
                 other_size = typesAndSizes[j, 1]
                 if dist < constants.MIN_PARTICLE_INFLUENCE:
                     force = (abs(attractions[p_type, other_type]) * -3 * other_size * (1 - dist / constants.MIN_PARTICLE_INFLUENCE) * constants.K) / p_size
-                        
-                    if p_type == other_type:
+                    
+                    if dist < constants.MAX_FUSION_DISTANCE and p_type == other_type:
                         fusionCount += 1
                 else:
                     force = (attractions[p_type, other_type] * other_size * (1 - dist / constants.MAX_PARTICLE_INFLUENCE) * constants.K) / p_size
@@ -147,7 +145,7 @@ class Particles():
 
             dist = np.sqrt(dir_x**2 + dir_y**2)
 
-            if dist >= constants.MIN_PARTICLE_INFLUENCE:
+            if dist >= constants.MAX_FUSION_DISTANCE:
                 continue
 
             # Close enough to consider for fusion
@@ -156,7 +154,9 @@ class Particles():
             closeParticlesDetected += 1
 
             if closeParticlesDetected >= constants.MIN_PARTICLES_FOR_FUSION:
-                size = np.sum(closeSizes)
+                sizeSum = np.sum(closeSizes)
+                sizeSum += typesAndSizes[index, 1]
+                sizeSum = sizeSum // (constants.MIN_PARTICLES_FOR_FUSION - 1)
 
                 sum_x = 0.0
                 sum_y = 0.0
@@ -166,26 +166,22 @@ class Particles():
                 averagePos = np.array([sum_x / closeParticlesDetected, sum_y / closeParticlesDetected], dtype=np.float64)
 
 
-                return closeIndices, averagePos, size
+                return closeIndices, averagePos, sizeSum
 
         # Not enough close particles for fusion
         return closeIndices, np.zeros(2, dtype=np.float64), -1
 
     def removeParticlesByIndices(indices):
-
         indicesList = indices.tolist()
         posList = Particles.positions.tolist()[:Particles.CURRENT_PARTICLE_COUNT]
         velList = Particles.velocities.tolist()[:Particles.CURRENT_PARTICLE_COUNT]
         typesAndSizesList = Particles.typesAndSizes.tolist()[:Particles.CURRENT_PARTICLE_COUNT]
 
-        
-
         pType = -1
 
         # Removal - reverse sorting is important
         for index in sorted(indicesList, reverse=True):
-            pType = posList[index][0]
-            print(f"JUST DELETED OF TYPE {pType}")
+            pType = typesAndSizesList[index][0]
             del posList[index]
             del velList[index]
             del typesAndSizesList[index]

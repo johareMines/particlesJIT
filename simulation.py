@@ -175,17 +175,17 @@ class Simulation:
             
 
             if fusionCandidate >= 0:
-                print(f"FUCAD")
+                # print(f"FUCAD")
 
             
             
                 indices, avgPos, newSize = Particles.detectCloseParticleIndices(fusionCandidate, Particles.positions, inputTypesAndSizes, Particles.CURRENT_PARTICLE_COUNT)
 
-                print(f"pre remove indices {indices} | avgPos {avgPos} | newSize {newSize}")
+                # print(f"pre remove indices {indices} | avgPos {avgPos} | newSize {newSize}")
 
                 # Commence fusion
                 if newSize > 0:
-                    print(f"IN FUSION")
+                    # print(f"IN FUSION")
 
                     # Remove small particles
                     newPos, newVel, newTypesAndSizes, pType = Particles.removeParticlesByIndices(indices)
@@ -194,8 +194,15 @@ class Simulation:
 
                     Particles.positions, Particles.velocities, Particles.typesAndSizes = newPos, newVel, newTypesAndSizes
 
-                    print(f"Out of remove by indices: Ptype: {pType} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
-            
+                    # print(f"Out of remove by indices: Ptype: {pType} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
+
+
+                    # Add large particle
+                    Particles.positions[Particles.CURRENT_PARTICLE_COUNT] = avgPos
+                    Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = np.array([0, 0], dtype=np.float32)
+                    Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = np.array([pType, newSize])
+
+                    Particles.CURRENT_PARTICLE_COUNT += 1
             
             
             
@@ -205,7 +212,7 @@ class Simulation:
             Particles.draw()
             
             
-            # Particles.spawnNewParticle()
+            Particles.spawnNewParticle()
             
             pygame.display.flip() # Update display
             
