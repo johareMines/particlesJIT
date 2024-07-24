@@ -167,18 +167,45 @@ class Simulation:
 
             constants.SCREEN.fill((0, 0, 0))  # Clear the screen
             
-            inputPos, inputVel, inputTypes = Particles.getParticleInfo()
-            posUntrimmed, velUntrimmed = Particles.updateParticles(inputPos, inputVel, inputTypes, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
+            inputPos, inputVel, inputTypesAndSizes = Particles.getParticleInfo()
+            posUntrimmed, velUntrimmed, fusionCandidate = Particles.updateParticles(inputPos, inputVel, inputTypesAndSizes, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
             Particles.positions[:Particles.CURRENT_PARTICLE_COUNT], Particles.velocities[:Particles.CURRENT_PARTICLE_COUNT] = posUntrimmed[:Particles.CURRENT_PARTICLE_COUNT], velUntrimmed[:Particles.CURRENT_PARTICLE_COUNT]
             
-            # print(f"JUST UPDATED: Pos {Particles.positions} | Vel {Particles.velocities}")
+            # print(f"JUST UPDATED: Fusion {fusionCandidate} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
+            
+
+            if fusionCandidate >= 0:
+                print(f"FUCAD")
+
+            
+            
+                indices, avgPos, newSize = Particles.detectCloseParticleIndices(fusionCandidate, Particles.positions, inputTypesAndSizes, Particles.CURRENT_PARTICLE_COUNT)
+
+                print(f"pre remove indices {indices} | avgPos {avgPos} | newSize {newSize}")
+
+                # Commence fusion
+                if newSize > 0:
+                    print(f"IN FUSION")
+
+                    # Remove small particles
+                    newPos, newVel, newTypesAndSizes, pType = Particles.removeParticlesByIndices(indices)
+                    # print(f"Out of remove by indices: Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(newPos)}) {newPos} | Vel ({len(newVel)}) {newVel} | TypeandSize ({len(newTypesAndSizes)}) {newTypesAndSizes}")
+            
+
+                    Particles.positions, Particles.velocities, Particles.typesAndSizes = newPos, newVel, newTypesAndSizes
+
+                    print(f"Out of remove by indices: Ptype: {pType} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
+            
+            
+            
+            
             # Draw circle at mouse position
             # self.drawMouseCircle()
             
             Particles.draw()
             
             
-            Particles.spawnNewParticle()
+            # Particles.spawnNewParticle()
             
             pygame.display.flip() # Update display
             

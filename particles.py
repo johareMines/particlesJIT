@@ -11,7 +11,7 @@ class Particles():
     __particleAttractions = None
     CURRENT_PARTICLE_COUNT = constants.START_PARTICLES
     
-    spawnIteration, SPAWN_ITERATION = 100, 100
+    spawnIteration, SPAWN_ITERATION = 10, 10
 
     positions, velocities, typesAndSizes = None, None, None
 
@@ -64,6 +64,7 @@ class Particles():
     def updateParticles(positions, velocities, typesAndSizes, attractions, currentParticleCount):
         new_positions = np.empty_like(positions)
         new_velocities = np.empty_like(velocities)
+        fusionCandidate = -1
         
         for i in range(currentParticleCount):
             totForceX, totForceY = 0.0, 0.0
@@ -71,39 +72,48 @@ class Particles():
             vel_x, vel_y = velocities[i]
             p_type = typesAndSizes[i, 0]
             p_size = typesAndSizes[i, 1]
+            fusionCount = 0
             
             for j in range(currentParticleCount):
-                if i != j:
-                    dir_x = positions[j, 0] - pos_x
-                    dir_y = positions[j, 1] - pos_y
+                if i == j:
+                    continue
+
+                
+                dir_x = positions[j, 0] - pos_x
+                dir_y = positions[j, 1] - pos_y
                     
-                    # Ensure forces obey screen wrapping
-                    if dir_x > 0.5 * constants.SCREEN_WIDTH:
-                        dir_x -= constants.SCREEN_WIDTH
-                    if dir_x < -0.5 * constants.SCREEN_WIDTH:
-                        dir_x += constants.SCREEN_WIDTH
-                    if dir_y > 0.5 * constants.SCREEN_HEIGHT:
-                        dir_y -= constants.SCREEN_HEIGHT
-                    if dir_y < -0.5 * constants.SCREEN_HEIGHT:
-                        dir_y += constants.SCREEN_HEIGHT
+                # Ensure forces obey screen wrapping
+                if dir_x > 0.5 * constants.SCREEN_WIDTH:
+                    dir_x -= constants.SCREEN_WIDTH
+                if dir_x < -0.5 * constants.SCREEN_WIDTH:
+                    dir_x += constants.SCREEN_WIDTH
+                if dir_y > 0.5 * constants.SCREEN_HEIGHT:
+                    dir_y -= constants.SCREEN_HEIGHT
+                if dir_y < -0.5 * constants.SCREEN_HEIGHT:
+                    dir_y += constants.SCREEN_HEIGHT
                         
-                    dist = np.sqrt(dir_x**2 + dir_y**2)
-                    if dist > constants.MAX_PARTICLE_INFLUENCE or dist <= 0:
-                        continue
+                dist = np.sqrt(dir_x**2 + dir_y**2)
+                if dist > constants.MAX_PARTICLE_INFLUENCE or dist <= 0:
+                    continue
 
                     
-                    dir_x, dir_y = dir_x / dist, dir_y / dist # Normalize dir vector
-                    other_type = typesAndSizes[j, 0]
-                    other_size = typesAndSizes[j, 1]
-                    if dist < constants.MIN_PARTICLE_INFLUENCE:
-                        force = (abs(attractions[p_type, other_type]) * -3 * other_size * (1 - dist / constants.MIN_PARTICLE_INFLUENCE) * constants.K) / p_size
+                dir_x, dir_y = dir_x / dist, dir_y / dist # Normalize dir vector
+                other_type = typesAndSizes[j, 0]
+                other_size = typesAndSizes[j, 1]
+                if dist < constants.MIN_PARTICLE_INFLUENCE:
+                    force = (abs(attractions[p_type, other_type]) * -3 * other_size * (1 - dist / constants.MIN_PARTICLE_INFLUENCE) * constants.K) / p_size
                         
-                    else:
-                        force = (attractions[p_type, other_type] * other_size * (1 - dist / constants.MAX_PARTICLE_INFLUENCE) * constants.K) / p_size
+                    if p_type == other_type:
+                        fusionCount += 1
+                else:
+                    force = (attractions[p_type, other_type] * other_size * (1 - dist / constants.MAX_PARTICLE_INFLUENCE) * constants.K) / p_size
                     
-                    totForceX += dir_x * force
-                    totForceY += dir_y * force
+                totForceX += dir_x * force
+                totForceY += dir_y * force
                         
+            if fusionCandidate == -1:
+                if fusionCount >= constants.MIN_PARTICLES_FOR_FUSION:
+                    fusionCandidate = i
             
             new_vel_x = vel_x + totForceX
             new_vel_y = vel_y + totForceY
@@ -115,7 +125,87 @@ class Particles():
             new_positions[i] = new_pos_x, new_pos_y
             new_velocities[i] = new_vel_x, new_vel_y
             
-        return new_positions, new_velocities
+        return new_positions, new_velocities, fusionCandidate
+    
+
+    @jit(nopython=True)
+    def detectCloseParticleIndices(index, positions, typesAndSizes, currentParticleCount):
+        closeIndices = np.zeros(constants.MIN_PARTICLES_FOR_FUSION, np.int32)
+        closeSizes = np.zeros(constants.MIN_PARTICLES_FOR_FUSION, np.int32)
+
+        closeParticlesDetected = 0
+
+        for i in range(currentParticleCount):
+            if i == index:
+                continue
+            # Don't care about particles of different types
+            if typesAndSizes[i, 0] != typesAndSizes[index, 0]:
+                continue
+            
+            dir_x = positions[i, 0] - positions[index, 0]
+            dir_y = positions[i, 1] - positions[index, 1]
+
+            dist = np.sqrt(dir_x**2 + dir_y**2)
+
+            if dist >= constants.MIN_PARTICLE_INFLUENCE:
+                continue
+
+            # Close enough to consider for fusion
+            closeIndices[closeParticlesDetected] = i
+            closeSizes[closeParticlesDetected] = typesAndSizes[i, 1]
+            closeParticlesDetected += 1
+
+            if closeParticlesDetected >= constants.MIN_PARTICLES_FOR_FUSION:
+                size = np.sum(closeSizes)
+
+                sum_x = 0.0
+                sum_y = 0.0
+                for j in range(closeParticlesDetected):
+                    sum_x += positions[closeIndices[j], 0]
+                    sum_y += positions[closeIndices[j], 1]
+                averagePos = np.array([sum_x / closeParticlesDetected, sum_y / closeParticlesDetected], dtype=np.float64)
+
+
+                return closeIndices, averagePos, size
+
+        # Not enough close particles for fusion
+        return closeIndices, np.zeros(2, dtype=np.float64), -1
+
+    def removeParticlesByIndices(indices):
+
+        indicesList = indices.tolist()
+        posList = Particles.positions.tolist()[:Particles.CURRENT_PARTICLE_COUNT]
+        velList = Particles.velocities.tolist()[:Particles.CURRENT_PARTICLE_COUNT]
+        typesAndSizesList = Particles.typesAndSizes.tolist()[:Particles.CURRENT_PARTICLE_COUNT]
+
+        
+
+        pType = -1
+
+        # Removal - reverse sorting is important
+        for index in sorted(indicesList, reverse=True):
+            pType = posList[index][0]
+            print(f"JUST DELETED OF TYPE {pType}")
+            del posList[index]
+            del velList[index]
+            del typesAndSizesList[index]
+            Particles.CURRENT_PARTICLE_COUNT -= 1
+        
+        
+        positionsTrimmed = np.array(posList)
+        velocitiesTrimmed = np.array(velList)
+        typesAndSizesTrimmed = np.array(typesAndSizesList)
+
+        newPositions = np.zeros((constants.MAX_PARTICLES, 2), dtype=Particles.positions.dtype)
+        newVelocities = np.zeros((constants.MAX_PARTICLES, 2), dtype=Particles.velocities.dtype)
+        newTypesAndSizes = np.zeros((constants.MAX_PARTICLES, 2), dtype=Particles.typesAndSizes.dtype)
+
+        # Copy trimmed array into new array of proper shape
+        newPositions[:Particles.CURRENT_PARTICLE_COUNT] = positionsTrimmed
+        newVelocities[:Particles.CURRENT_PARTICLE_COUNT] = velocitiesTrimmed
+        newTypesAndSizes[:Particles.CURRENT_PARTICLE_COUNT] = typesAndSizesTrimmed
+
+        return newPositions, newVelocities, newTypesAndSizes, pType
     
     @staticmethod
     def draw():
