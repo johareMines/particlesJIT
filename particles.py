@@ -11,19 +11,20 @@ class Particles():
     __particleAttractions = None
     CURRENT_PARTICLE_COUNT = constants.START_PARTICLES
     
-    spawnIteration, SPAWN_ITERATION = 10, 10
+    spawnIteration, SPAWN_ITERATION = 10, 2
 
     positions, velocities, typesAndSizes = None, None, None
+    
+    particleSurfaces = {}
 
-    colors = ((245, 41, 170), # Pink
+    colors = [(245, 41, 170), # Pink
                 (112, 215, 255), # Cyan
                 (156, 174, 169), # GREY
                 (255, 0, 0),#(244, 224, 77), # Red
                 (19, 138, 54),#(112, 5, 72), # Purple
-                (224, 142, 0)
-                , # Orange
+                (224, 142, 0), # Orange
                 (0, 255, 0), (0, 0, 255), (255, 255, 255)
-                 )
+    ]
 
     
     @staticmethod
@@ -40,7 +41,8 @@ class Particles():
     @staticmethod
     def spawnNewParticle():
         if Particles.CURRENT_PARTICLE_COUNT >= constants.MAX_PARTICLES:
-            print(f"Attempted to spawn particle when limit was reached")
+            # print(f"Attempted to spawn particle when limit was reached")
+            Particles.spawnIteration = Particles.SPAWN_ITERATION * 5
             return
         
         if Particles.spawnIteration == 0:
@@ -207,45 +209,33 @@ class Particles():
     
     @staticmethod
     def draw():
+        
+        # for i in range(Particles.CURRENT_PARTICLE_COUNT):
+        #     pType = Particles.typesAndSizes[i, 0]
+        #     pSize = Particles.typesAndSizes[i, 1]
+        #     color = Particles.colors[pType]
+
+        #     # Use cached surface if available
+        #     if (pType, pSize) not in Particles.particleSurfaces:
+        #         surface = pygame.Surface((pSize * 2, pSize * 2), pygame.SRCALPHA)
+        #         pygame.draw.circle(surface, color, (pSize, pSize), pSize)
+        #         Particles.particleSurfaces[(pType, pSize)] = surface
+        #     else:
+        #         surface = Particles.particleSurfaces[(pType, pSize)]
+
+        #     pos = Particles.positions[i]
+        #     constants.SCREEN.blit(surface, (pos[0] - pSize, pos[1] - pSize))
+        
+        
+        # Lock the surface to avoid unnecessary state changes
+        screenLock = pygame.surfarray.pixels2d(constants.SCREEN)
         for i in range(Particles.CURRENT_PARTICLE_COUNT):
             color = Particles.colors[Particles.typesAndSizes[i, 0]]
             pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), Particles.typesAndSizes[i, 1])
-    
-    # @staticmethod
-    # class particleTypeColors(Enum):
-    #     PINK = (255, 130, 169)
-    #     TEAL = (44, 175, 201)
-    #     GREY = (156, 174, 169)
-    #     MAIZE = (244, 224, 77)
-    #     INDIGO = (84, 13, 110)
-    #     ORANGE = (224, 92, 21)
+        del screenLock
 
     
     @staticmethod
     def getParticleInfo():
         return (Particles.positions, Particles.velocities, Particles.typesAndSizes)
         
-    
-    # @staticmethod
-    # def particleTypeByIndex(index):
-    #     switch = {
-    #         0: Particle.particleTypes.PINK,
-    #         1: Particle.particleTypes.TEAL,
-    #         2: Particle.particleTypes.GREY,
-    #         3: Particle.particleTypes.MAIZE,
-    #         4: Particle.particleTypes.INDIGO,
-    #         5: Particle.particleTypes.ORANGE
-    #     }
-    #     return switch.get(index)
-
-    # @staticmethod
-    # def particleTypeByEnum(enum):
-    #     switch = {
-    #         Particle.particleTypes.PINK: 0,
-    #         Particle.particleTypes.TEAL: 1,
-    #         Particle.particleTypes.GREY: 2,
-    #         Particle.particleTypes.MAIZE: 3,
-    #         Particle.particleTypes.INDIGO: 4,
-    #         Particle.particleTypes.ORANGE: 5,
-    #     }
-    #     return switch.get(enum)

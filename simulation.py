@@ -43,14 +43,14 @@ class Simulation:
                 pygame.K_9: 9
             }
 
-            # self.frame_times = []
-            # self.frame_print_time = time.time()
+            self.frame_times = []
+            self.frame_print_time = time.time()
 
-            # self.performanceMonitor = PerformanceMonitor(constants.MONITOR_INTERVAL) # Interval in seconds
-            # self.performanceMonitor.start()
+            self.performanceMonitor = PerformanceMonitor(constants.MONITOR_INTERVAL) # Interval in seconds
+            self.performanceMonitor.start()
 
-            # # Event to handle killing thread on program end
-            # self.velThreadStopEvent = threading.Event()
+            # Event to handle killing thread on program end
+            self.velThreadStopEvent = threading.Event()
 
     @staticmethod          
     def get_save_file_list(directory):
@@ -147,7 +147,7 @@ class Simulation:
 
         running = True
         while running:
-            # start_time = time.time() # For framerate calculation
+            start_time = time.time() # For framerate calculation
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     running = False
@@ -209,26 +209,28 @@ class Simulation:
             # Draw circle at mouse position
             # self.drawMouseCircle()
             
+            Particles.spawnNewParticle()
+            
             Particles.draw()
             
             
-            Particles.spawnNewParticle()
+            
             
             pygame.display.flip() # Update display
             
             # Calc framerate
             self.clock.tick(60)  # FPS Limit
-            # end_time = time.time()
-            # frame_time = end_time - start_time
-            # self.frame_times.append(frame_time)
-            # if len(self.frame_times) > 70:
-            #     self.frame_times.pop(0)
-            # self.calculateFramerate()
+            end_time = time.time()
+            frame_time = end_time - start_time
+            self.frame_times.append(frame_time)
+            if len(self.frame_times) > 70:
+                self.frame_times.pop(0)
+            self.calculateFramerate()
             
             
             
-        # self.performanceMonitor.stop()
-        # self.performanceMonitor.join()
+        self.performanceMonitor.stop()
+        self.performanceMonitor.join()
 
         
         pygame.quit()
@@ -261,7 +263,7 @@ class PerformanceMonitor(threading.Thread):
         while not self.stopped.wait(self.interval):
             self.monitorCPU()
             self.monitorMemory()
-            # self.monitorObjects()
+            self.monitorParticleCount()
 
     def monitorCPU(self):
         cpu_percent = self.process.cpu_percent()
@@ -270,6 +272,9 @@ class PerformanceMonitor(threading.Thread):
     def monitorMemory(self):
         memory_info = self.process.memory_info()
         print(f"Memory Usage: {memory_info.rss / (1024 * 1024)} MB")  # Convert to MB
+    
+    def monitorParticleCount(self):
+        print(f"Particle Count: {Particles.CURRENT_PARTICLE_COUNT}")
     
     def stop(self):
         self.stopped.set()
