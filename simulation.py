@@ -214,7 +214,7 @@ class Simulation:
             # Draw circle at mouse position
             # self.drawMouseCircle()
             
-            Particles.spawnParticlesContinuously()
+            Particles.spawnParticlePeriodically()
             
             Particles.draw()
             

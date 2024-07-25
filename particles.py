@@ -40,26 +40,28 @@ class Particles():
     
     @staticmethod
     def spawnParticle(pos, type):
+        # Prevent buffer overflow
         if Particles.CURRENT_PARTICLE_COUNT >= constants.MAX_PARTICLES:
             # print(f"Attempted to spawn particle when limit was reached")
             Particles.spawnIteration = Particles.SPAWN_ITERATION * 5
             return
         
+        # Ensure particles never have the exact same pos
         pos[0] += random.uniform(-0.1, 0.1)
         pos[1] += random.uniform(-0.1, 0.1)
 
         Particles.positions[Particles.CURRENT_PARTICLE_COUNT] = pos
 
+        # Ensure arrays are clean
         newVel = np.array([0, 0], dtype=np.float32)
-        Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = newVel
-
         newTypeAndSize = np.array([type, 2])
+        Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = newVel
         Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = newTypeAndSize
 
         Particles.CURRENT_PARTICLE_COUNT += 1
 
     @staticmethod
-    def spawnParticlesContinuously():
+    def spawnParticlePeriodically():
         if Particles.spawnIteration == 0:
             Particles.spawnParticle(np.array([constants.SCREEN_WIDTH // 2, constants.SCREEN_HEIGHT // 2], dtype=np.float64), random.randint(0, constants.PARTICLE_TYPE_COUNT - 1))
 
@@ -72,7 +74,7 @@ class Particles():
     def updateParticles(positions, velocities, typesAndSizes, splitTimers, attractions, currentParticleCount):
         newPositions = np.empty_like(positions)
         newVelocities = np.empty_like(velocities)
-        # newSplitTimers = np.empty_like(splitTimers)
+
         fusionCandidate = -1
 
         fissionPositionTypeAndQuantity = np.zeros(4, dtype=np.float64)
@@ -87,6 +89,7 @@ class Particles():
             fusionCount = 0
             
             for j in range(currentParticleCount):
+                # Ignore self
                 if i == j:
                     continue
 
@@ -123,7 +126,7 @@ class Particles():
                 totForceX += dirX * force
                 totForceY += dirY * force
             
-            # Work towards fission
+            # Progress towards fission
             if pSize > constants.MIN_FISSION_SIZE:
                 newTimer = splitTimers[i] + 1
 
@@ -131,16 +134,12 @@ class Particles():
                 if (not fissionDetected) and (newTimer >= constants.TIME_BEFORE_FISSION):
 
                     splitTimers[i] = 0
-                    fissionPositionTypeAndQuantity = np.array([posX, posY, pType, pSize - constants.MIN_FISSION_SIZE], dtype=np.float64)
+                    fissionPosition = positions[i]#np.array([positions[i], pType, pSize - constants.MIN_FISSION_SIZE], dtype=np.float64)
+                    fissionType = pType
+                    fissionQuantity = pSize - constants.MIN_FISSION_SIZE
                     typesAndSizes[i, 1] = 2
                     
                     fissionDetected = True
-                    # splitTimers[i] = 0
-                    # for j in range(0, constants.MAX_PARTICLES_UNDERGOING_FISSION):
-                    #     if newSize <= constants.MIN_FISSION_SIZE:
-                    #         break
-
-                    # fissionPositionsTypesAndQuantities[fissionIndex] = np.arrayposX
                 else:
                     splitTimers[i] = newTimer
             
