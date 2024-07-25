@@ -138,10 +138,12 @@ class Simulation:
         Particles.__particleAttractions = Particles.setAttractions()
         Particles.positions = (np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]).astype(np.float64)
         Particles.velocities = np.zeros((constants.MAX_PARTICLES, 2), dtype=np.float32)
-        Particles.typesAndSizes = np.column_stack((np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES), np.full(constants.MAX_PARTICLES, 2)))
+        Particles.typesAndSizes = np.column_stack((np.random.randint(0, constants.PARTICLE_TYPE_COUNT - 1, constants.MAX_PARTICLES), np.full(constants.MAX_PARTICLES, 2)))
+        Particles.splitTimers = np.zeros(constants.MAX_PARTICLES, dtype=np.int64)
+        # Particles.fissionParticles = np.array(np.zeros((constants.MAX_PARTICLES_FROM_FISSION, 2), dtype=np.float64), np.zeros(dtype=np.int32))
         # Particles.typesAndSizes = np.random.randint(0, constants.PARTICLE_TYPE_COUNT, constants.MAX_PARTICLES)
         
-        print(f"Initial values: Pos {Particles.positions} | Vel {Particles.velocities} | TypesAndSizes {Particles.typesAndSizes}")
+        print(f"Initial values: Pos {Particles.positions} | Vel {Particles.velocities} | TypesEtc {Particles.typesAndSizes}")
 
         
 
@@ -168,31 +170,27 @@ class Simulation:
             constants.SCREEN.fill((0, 0, 0))  # Clear the screen
             
             inputPos, inputVel, inputTypesAndSizes = Particles.getParticleInfo()
-            posUntrimmed, velUntrimmed, fusionCandidate = Particles.updateParticles(inputPos, inputVel, inputTypesAndSizes, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
-            Particles.positions[:Particles.CURRENT_PARTICLE_COUNT], Particles.velocities[:Particles.CURRENT_PARTICLE_COUNT] = posUntrimmed[:Particles.CURRENT_PARTICLE_COUNT], velUntrimmed[:Particles.CURRENT_PARTICLE_COUNT]
+            posUntrimmed, velUntrimmed, splitTimersUntrimmed, fusionCandidate, fissionPositionsTypesAndQuantities = Particles.updateParticles(inputPos, inputVel, inputTypesAndSizes, Particles.splitTimers, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
+            Particles.positions[:Particles.CURRENT_PARTICLE_COUNT], Particles.velocities[:Particles.CURRENT_PARTICLE_COUNT], Particles.splitTimers[:Particles.CURRENT_PARTICLE_COUNT] = posUntrimmed[:Particles.CURRENT_PARTICLE_COUNT], velUntrimmed[:Particles.CURRENT_PARTICLE_COUNT], splitTimersUntrimmed[:Particles.CURRENT_PARTICLE_COUNT]
             
+            # Particles.splitTimers = splitTimersUntrimmed
             # print(f"JUST UPDATED: Fusion {fusionCandidate} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
-            
-
+            # print(f"Just updated: fission {fissionPositionsTypesAndQuantities} ")#| split {Particles.splitTimers[:Particles.CURRENT_PARTICLE_COUNT]}")#{newTypesSizesAndSplitTimersUntrimmed}")#fissionParticle {fissionParticles}")
+            # for i in newTypesSizesAndSplitTimersUntrimmed:
+            #     print(i)
             if fusionCandidate >= 0:
-                # print(f"FUCAD")
-
-            
-            
-                indices, avgPos, newSize = Particles.detectCloseParticleIndices(fusionCandidate, Particles.positions, inputTypesAndSizes, Particles.CURRENT_PARTICLE_COUNT)
-
-                # print(f"pre remove indices {indices} | avgPos {avgPos} | newSize {newSize}")
+                indices, avgPos, newSize = Particles.detectFusionIndices(fusionCandidate, Particles.positions, inputTypesAndSizes, Particles.CURRENT_PARTICLE_COUNT)
 
                 # Commence fusion
                 if newSize > 0:
                     # print(f"IN FUSION")
 
                     # Remove small particles
-                    newPos, newVel, newTypesAndSizes, pType = Particles.removeParticlesByIndices(indices)
+                    newPos, newVel, newTypesAndSizes, newSplitTimers, pType = Particles.removeParticlesForFusion(indices)
                     # print(f"Out of remove by indices: Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(newPos)}) {newPos} | Vel ({len(newVel)}) {newVel} | TypeandSize ({len(newTypesAndSizes)}) {newTypesAndSizes}")
             
 
-                    Particles.positions, Particles.velocities, Particles.typesAndSizes = newPos, newVel, newTypesAndSizes
+                    Particles.positions, Particles.velocities, Particles.typesAndSizes, Particles.splitTimers = newPos, newVel, newTypesAndSizes, newSplitTimers
 
                     # print(f"Out of remove by indices: Ptype: {pType} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
 
@@ -201,15 +199,22 @@ class Simulation:
                     Particles.positions[Particles.CURRENT_PARTICLE_COUNT] = avgPos
                     Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = np.array([0, 0], dtype=np.float32)
                     Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = np.array([pType, newSize])
+                    Particles.splitTimers[Particles.CURRENT_PARTICLE_COUNT] = 0
 
                     Particles.CURRENT_PARTICLE_COUNT += 1
             
             
-            
+            # Do Fission
+            # print(fissionPositionsTypesAndQuantities.tolist()[0])
+            if fissionPositionsTypesAndQuantities[0] != 0.0:
+
+                Particles.handleFission(fissionPositionsTypesAndQuantities[:2], int(fissionPositionsTypesAndQuantities[2]), int(fissionPositionsTypesAndQuantities[3]))
+
+
             # Draw circle at mouse position
             # self.drawMouseCircle()
             
-            Particles.spawnNewParticle()
+            Particles.spawnParticlesContinuously()
             
             Particles.draw()
             
