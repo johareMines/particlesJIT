@@ -76,8 +76,10 @@ class Particles():
         newVelocities = np.empty_like(velocities)
 
         fusionCandidate = -1
-
-        fissionPositionTypeAndQuantity = np.zeros(4, dtype=np.float64)
+        fissionPosition = np.zeros(2, dtype=np.float64)
+        fissionType = -1
+        fissionQuantity = -1
+        # fissionPositionTypeAndQuantity = np.zeros(4, dtype=np.float64)
         fissionDetected = False
 
         for i in range(currentParticleCount):
@@ -161,7 +163,7 @@ class Particles():
             newPositions[i] = new_pos_x, new_pos_y
             newVelocities[i] = new_vel_x, new_vel_y
             
-        return newPositions, newVelocities, splitTimers, fusionCandidate, fissionPositionTypeAndQuantity
+        return newPositions, newVelocities, splitTimers, fusionCandidate, fissionPosition, fissionType, fissionQuantity
     
 
     @jit(nopython=True)
@@ -250,11 +252,14 @@ class Particles():
         return newPositions, newVelocities, newTypesAndSizes, newSplitTimers, pType
     
     @staticmethod
-    def handleFission(pos, type, quantity):
-        # print(f"handlingFission quantity is {quantity}")
+    def handleFission(pos, fType, quantity):
+        # No fission this frame
+        if fType < 0:
+            return
+        
         quantity += 1
         for _ in range(quantity**2):
-            Particles.spawnParticle(pos, type)
+            Particles.spawnParticle(pos, fType)
         
     @staticmethod
     def draw():
