@@ -38,37 +38,6 @@ class Particles():
         print(f"Forces are {attractions}")
         return attractions
     
-    @staticmethod
-    def spawnParticle(pos, type):
-        # Prevent buffer overflow
-        if Particles.CURRENT_PARTICLE_COUNT >= constants.MAX_PARTICLES:
-            # print(f"Attempted to spawn particle when limit was reached")
-            Particles.spawnIteration = Particles.SPAWN_ITERATION * 5
-            return
-        
-        # Ensure particles never have the exact same pos
-        pos[0] += random.uniform(-0.1, 0.1)
-        pos[1] += random.uniform(-0.1, 0.1)
-
-        Particles.positions[Particles.CURRENT_PARTICLE_COUNT] = pos
-
-        # Ensure arrays are clean
-        newVel = np.array([0, 0], dtype=np.float32)
-        newTypeAndSize = np.array([type, 2])
-        Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = newVel
-        Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = newTypeAndSize
-
-        Particles.CURRENT_PARTICLE_COUNT += 1
-
-    @staticmethod
-    def spawnParticlePeriodically():
-        if Particles.spawnIteration == 0:
-            Particles.spawnParticle(np.array([constants.SCREEN_WIDTH // 2, constants.SCREEN_HEIGHT // 2], dtype=np.float64), random.randint(0, constants.PARTICLE_TYPE_COUNT - 1))
-
-            Particles.spawnIteration = Particles.SPAWN_ITERATION
-        else:
-            Particles.spawnIteration -= 1
-    
     
     @jit(nopython=True)
     def updateParticles(positions, velocities, typesAndSizes, splitTimers, attractions, currentParticleCount):
@@ -79,7 +48,6 @@ class Particles():
         fissionPosition = np.zeros(2, dtype=np.float64)
         fissionType = -1
         fissionQuantity = -1
-        # fissionPositionTypeAndQuantity = np.zeros(4, dtype=np.float64)
         fissionDetected = False
 
         for i in range(currentParticleCount):
@@ -166,8 +134,45 @@ class Particles():
         return newPositions, newVelocities, splitTimers, fusionCandidate, fissionPosition, fissionType, fissionQuantity
     
 
+    @staticmethod
+    def spawnParticle(pos, type):
+        # Prevent buffer overflow
+        if Particles.CURRENT_PARTICLE_COUNT >= constants.MAX_PARTICLES:
+            # print(f"Attempted to spawn particle when limit was reached")
+            Particles.spawnIteration = Particles.SPAWN_ITERATION * 5
+            return
+        
+        # Ensure particles never have the exact same pos
+        pos[0] += random.uniform(-0.1, 0.1)
+        pos[1] += random.uniform(-0.1, 0.1)
+
+        Particles.positions[Particles.CURRENT_PARTICLE_COUNT] = pos
+
+        # Ensure arrays are clean
+        newVel = np.array([0, 0], dtype=np.float32)
+        newTypeAndSize = np.array([type, 2])
+        Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = newVel
+        Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = newTypeAndSize
+
+        Particles.CURRENT_PARTICLE_COUNT += 1
+
+
+    @staticmethod
+    def spawnParticlePeriodically():
+        if Particles.spawnIteration == 0:
+            Particles.spawnParticle(np.array([constants.SCREEN_WIDTH // 2, constants.SCREEN_HEIGHT // 2], dtype=np.float64), random.randint(0, constants.PARTICLE_TYPE_COUNT - 1))
+
+            Particles.spawnIteration = Particles.SPAWN_ITERATION
+        else:
+            Particles.spawnIteration -= 1
+
+
+
     @jit(nopython=True)
     def detectFusionIndices(index, positions, typesAndSizes, currentParticleCount):
+        """ Determine the particles that will be removed during fusion
+            Return particle indices for removal, avgPos (new particle spawn point), and particle type undergoing fusion
+        """
         closeIndices = np.zeros(constants.MIN_PARTICLES_FOR_FUSION, np.int32)
         closeSizes = np.zeros(constants.MIN_PARTICLES_FOR_FUSION, np.int32)
 
@@ -214,6 +219,7 @@ class Particles():
         # Not enough close particles for fusion
         return closeIndices, np.zeros(2, dtype=np.float64), -1
 
+    # Handle removing data arrays
     def removeParticlesForFusion(indices):
         indicesList = indices.tolist()
         posList = Particles.positions.tolist()[:Particles.CURRENT_PARTICLE_COUNT]
@@ -232,22 +238,16 @@ class Particles():
             del splitTimersList[index]
             Particles.CURRENT_PARTICLE_COUNT -= 1
         
-        
-        positionsTrimmed = np.array(posList)
-        velocitiesTrimmed = np.array(velList)
-        typesAndSizesTrimmed = np.array(typesAndSizesList)
-        splitTimersListTrimmed = np.array(splitTimersList)
-
         newPositions = np.zeros((constants.MAX_PARTICLES, 2), dtype=Particles.positions.dtype)
         newVelocities = np.zeros((constants.MAX_PARTICLES, 2), dtype=Particles.velocities.dtype)
         newTypesAndSizes = np.zeros((constants.MAX_PARTICLES, 2), dtype=Particles.typesAndSizes.dtype)
         newSplitTimers = np.zeros(constants.MAX_PARTICLES, dtype=Particles.splitTimers.dtype)
 
         # Copy trimmed array into new array of proper shape
-        newPositions[:Particles.CURRENT_PARTICLE_COUNT] = positionsTrimmed
-        newVelocities[:Particles.CURRENT_PARTICLE_COUNT] = velocitiesTrimmed
-        newTypesAndSizes[:Particles.CURRENT_PARTICLE_COUNT] = typesAndSizesTrimmed
-        newSplitTimers[:Particles.CURRENT_PARTICLE_COUNT] = splitTimersListTrimmed
+        newPositions[:Particles.CURRENT_PARTICLE_COUNT] = np.array(posList)
+        newVelocities[:Particles.CURRENT_PARTICLE_COUNT] = np.array(velList)
+        newTypesAndSizes[:Particles.CURRENT_PARTICLE_COUNT] = np.array(typesAndSizesList)
+        newSplitTimers[:Particles.CURRENT_PARTICLE_COUNT] = np.array(splitTimersList)
 
         return newPositions, newVelocities, newTypesAndSizes, newSplitTimers, pType
     

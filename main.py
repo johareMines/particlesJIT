@@ -13,4 +13,4 @@ if __name__ == "__main__":
     cProfile.run('runSimulation()', "funcStats")
     
     p = pstats.Stats("funcStats")
-    p.sort_stats("cumulative").print_stats(150)
+    p.sort_stats("cumulative").print_stats(100)
