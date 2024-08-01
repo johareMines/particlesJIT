@@ -41,6 +41,8 @@ class Particles():
     
     @jit(nopython=True)
     def updateParticles(positions, velocities, typesAndSizes, splitTimers, attractions, currentParticleCount):
+        """ Update positions and velocities for all particles directly - faster than creating a temp datatype
+            Return fusion and fission info """
         fusionCandidate = -1
         fissionPosition = np.zeros(2, dtype=np.float64)
         fissionType = -1
@@ -50,7 +52,7 @@ class Particles():
         for i in range(currentParticleCount):
             totForceX, totForceY = 0.0, 0.0
             posX, posY = positions[i]
-            velX, velY = velocities[i]
+            
             pType = typesAndSizes[i, 0]
             pSize = typesAndSizes[i, 1]
             fusionCount = 0
@@ -114,17 +116,15 @@ class Particles():
                 if fusionCount >= constants.MIN_PARTICLES_FOR_FUSION:
                     fusionCandidate = i
             
-            new_vel_x = velX + totForceX
-            new_vel_y = velY + totForceY
-            new_pos_x = (posX + new_vel_x) % constants.SCREEN_WIDTH
-            new_pos_y = (posY + new_vel_y) % constants.SCREEN_HEIGHT
-            new_vel_x *= constants.FRICTION
-            new_vel_y *= constants.FRICTION
+            newVelX = velocities[i, 0] + totForceX
+            newVelY = velocities[i, 1] + totForceY
+            positions[i] = (posX + newVelX) % constants.SCREEN_WIDTH, (posY + newVelY) % constants.SCREEN_WIDTH
 
-            
-            
-            positions[i] = new_pos_x, new_pos_y
-            velocities[i] = new_vel_x, new_vel_y
+
+            newVelX *= constants.FRICTION
+            newVelY *= constants.FRICTION
+
+            velocities[i] = newVelX, newVelY
             
         return fusionCandidate, fissionPosition, fissionType, fissionQuantity
     
