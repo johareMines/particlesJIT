@@ -41,9 +41,6 @@ class Particles():
     
     @jit(nopython=True)
     def updateParticles(positions, velocities, typesAndSizes, splitTimers, attractions, currentParticleCount):
-        newPositions = np.empty_like(positions)
-        newVelocities = np.empty_like(velocities)
-
         fusionCandidate = -1
         fissionPosition = np.zeros(2, dtype=np.float64)
         fissionType = -1
@@ -62,7 +59,6 @@ class Particles():
                 # Ignore self
                 if i == j:
                     continue
-
                 
                 dirX = positions[j, 0] - posX
                 dirY = positions[j, 1] - posY
@@ -102,9 +98,8 @@ class Particles():
 
                 # Calc values for new particles from fission
                 if (not fissionDetected) and (newTimer >= constants.TIME_BEFORE_FISSION):
-
                     splitTimers[i] = 0
-                    fissionPosition = positions[i]#np.array([positions[i], pType, pSize - constants.MIN_FISSION_SIZE], dtype=np.float64)
+                    fissionPosition = positions[i]
                     fissionType = pType
                     fissionQuantity = pSize - constants.MIN_FISSION_SIZE
                     typesAndSizes[i, 1] = 2
@@ -128,10 +123,10 @@ class Particles():
 
             
             
-            newPositions[i] = new_pos_x, new_pos_y
-            newVelocities[i] = new_vel_x, new_vel_y
+            positions[i] = new_pos_x, new_pos_y
+            velocities[i] = new_vel_x, new_vel_y
             
-        return newPositions, newVelocities, splitTimers, fusionCandidate, fissionPosition, fissionType, fissionQuantity
+        return fusionCandidate, fissionPosition, fissionType, fissionQuantity
     
 
     @staticmethod

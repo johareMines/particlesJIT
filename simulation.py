@@ -170,8 +170,8 @@ class Simulation:
             constants.SCREEN.fill((0, 0, 0))  # Clear the screen
             
             inputPos, inputVel, inputTypesAndSizes = Particles.getParticleInfo()
-            posUntrimmed, velUntrimmed, splitTimersUntrimmed, fusionCandidate, fissionPosition, fissionType, fissionQuantity = Particles.updateParticles(inputPos, inputVel, inputTypesAndSizes, Particles.splitTimers, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
-            Particles.positions[:Particles.CURRENT_PARTICLE_COUNT], Particles.velocities[:Particles.CURRENT_PARTICLE_COUNT], Particles.splitTimers[:Particles.CURRENT_PARTICLE_COUNT] = posUntrimmed[:Particles.CURRENT_PARTICLE_COUNT], velUntrimmed[:Particles.CURRENT_PARTICLE_COUNT], splitTimersUntrimmed[:Particles.CURRENT_PARTICLE_COUNT]
+            fusionCandidate, fissionPosition, fissionType, fissionQuantity = Particles.updateParticles(inputPos, inputVel, inputTypesAndSizes, Particles.splitTimers, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
+            # Particles.splitTimers[:Particles.CURRENT_PARTICLE_COUNT] = splitTimersUntrimmed[:Particles.CURRENT_PARTICLE_COUNT]
             
             # Particles.splitTimers = splitTimersUntrimmed
             # print(f"JUST UPDATED: Fusion {fusionCandidate} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
