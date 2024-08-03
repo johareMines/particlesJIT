@@ -43,6 +43,14 @@ class Simulation:
                 pygame.K_9: 9
             }
 
+            self.JSONFileSelected = -1
+            self.arrowKeyMappings = [
+                pygame.K_UP,
+                pygame.K_DOWN,
+                pygame.K_RIGHT,
+                pygame.K_LEFT
+            ]
+
             self.frame_times = []
             self.frame_print_time = time.time()
 
@@ -52,20 +60,30 @@ class Simulation:
             # Event to handle killing thread on program end
             self.velThreadStopEvent = threading.Event()
 
+    @staticmethod
+    def get_instance():
+        # Static method to get the singleton instance
+        if Simulation.__instance is None:
+            Simulation.__instance = Simulation()
+        return Simulation.__instance
+    
     @staticmethod          
-    def get_save_file_list(directory):
+    def getAttractionsFromJson(directory):
         # List files in the directory
         files = os.listdir(directory)
         fileList = []
 
         # Check if there is exactly one file
         for i in range(len(files)):
+            if files[i] == 'LoadDir':
+                continue
+
             fileList.append(files[i])
         
         return fileList
     
     @staticmethod
-    def load_attractions_from_save(filePath):
+    def loadAttractionsFromJSON(filePath):
         if not os.path.exists(filePath):
             raise FileNotFoundError(f"No such file: '{filePath}'")
         
@@ -79,20 +97,22 @@ class Simulation:
         return array
     
     @staticmethod
-    def save_attractions_to_JSON():
+    def saveAttractionsToJSON():
         # Save forces array to new JSON file
         jsonList = Particles.__particleAttractions.tolist()
                     
         # Time based UUID
         id = uuid.uuid1()
 
-
         # Define the directory and file path
-        directory = 'SavedAttractions'
-        file_path = os.path.join(directory, f'{id}.json')
+        attractionsDir = 'SavedAttractions'
+        typeDir = f'{constants.PARTICLE_TYPE_COUNT}Types'
+        fullDir = os.path.join(attractionsDir, typeDir)
 
         # Ensure the directory exists
-        os.makedirs(directory, exist_ok=True)
+        os.makedirs(fullDir, exist_ok=True)
+
+        file_path = os.path.join(fullDir, f'{id}.json')
 
         # Write to the JSON file
         with open(file_path, 'w') as json_file:
@@ -101,34 +121,52 @@ class Simulation:
 
             print(f"Data saved to {file_path}")
 
-    @staticmethod
-    def get_instance():
-        # Static method to get the singleton instance
-        if Simulation.__instance is None:
-            Simulation.__instance = Simulation()
-        return Simulation.__instance
-
-    
 
     # Handle numkey press (load saved attraction values)
-    def handle_key_press(self, key):
+    def handleNumkeyPress(self, key):
         if key in self.numberKeyMappings:
-            self.load_save_file(self.numberKeyMappings[key])
+            self.loadSaveFromLoadDir(self.numberKeyMappings[key])
         else:
             print(f"Invalid key: {key}")
+    
+    def handleArrowKeyPress(self, key):
+        if key not in self.arrowKeyMappings:
+            print(f"Invalid key {key} OBSOLETE")
+            return
         
-    def load_save_file(self, index):
-        directory = 'SavedAttractions/LoadDir'
-        saveFiles = self.get_save_file_list(directory)
+        
+        directory = f'SavedAttractions/{constants.PARTICLE_TYPE_COUNT}Types'
+        saveFiles = self.getAttractionsFromJson(directory)
+
+
+        if key == pygame.K_RIGHT or key == pygame.K_UP:
+            self.JSONFileSelected += 1
+        else:
+            self.JSONFileSelected -= 1
+
+        if self.JSONFileSelected < 0:
+            self.JSONFileSelected = 0
+
+        index = self.JSONFileSelected % len(saveFiles)
+
+        loadFile = os.path.join(directory, saveFiles[index])
+
+        Particles.__particleAttractions = self.loadAttractionsFromJSON(loadFile)
+
+
+        
+    def loadSaveFromLoadDir(self, index):
+        directory = f'SavedAttractions/{constants.PARTICLE_TYPE_COUNT}Types/LoadDir'
+        saveFiles = self.getAttractionsFromJson(directory)
 
         if index >= len(saveFiles):
             return
         
         loadFile = os.path.join(directory, saveFiles[index])
 
-        newAttractions = self.load_attractions_from_save(loadFile)
+        loadAttractions = self.loadAttractionsFromJSON(loadFile)
 
-        Particles.__particleAttractions = newAttractions
+        Particles.__particleAttractions = loadAttractions
 
         
 
@@ -156,14 +194,17 @@ class Simulation:
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
-                    if event.key == pygame.K_r:
+                    elif event.key == pygame.K_r:
                         Particles.__particleAttractions = Particles.setAttractions()
-                    if event.key == pygame.K_s:
-                        self.save_attractions_to_JSON()
+                    elif event.key == pygame.K_s:
+                        self.saveAttractionsToJSON()
 
                     # Load saved values
                     elif event.key in self.numberKeyMappings:
-                        self.handle_key_press(event.key)
+                        self.handleNumkeyPress(event.key)
+                    
+                    elif event.key == pygame.K_RIGHT or event.key == pygame.K_UP:
+                        self.handleArrowKeyPress(event.key)
                         
 
 
