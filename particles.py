@@ -1,6 +1,6 @@
 import numpy as np
 from enum import Enum
-from numba import jit
+from numba import jit, types
 import constants
 import pygame
 import random
@@ -160,8 +160,7 @@ class Particles():
             Particles.spawnIteration -= 1
 
 
-
-    @jit(nopython=True)
+    @jit(types.Tuple((types.int32[:], types.float64[:], types.int64))(types.int64, types.float64[:, :], types.int32[:, :], types.int64), nopython=True)
     def detectFusionIndices(index, positions, typesAndSizes, currentParticleCount):
         """ Determine the particles that will be removed during fusion
             Return particle indices for removal, avgPos (new particle spawn point), and particle type undergoing fusion
