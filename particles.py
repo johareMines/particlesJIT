@@ -99,7 +99,7 @@ class Particles():
                 newTimer = splitTimers[i] + 1
 
                 # Calc values for new particles from fission
-                if (not fissionDetected) and (newTimer >= constants.TIME_BEFORE_FISSION):
+                if (not fissionDetected) and (newTimer >= constants.TIME_BEFORE_FISSION) and (currentParticleCount < constants.MAX_PARTICLES):
                     splitTimers[i] = 0
                     fissionPosition = positions[i]
                     fissionType = pType
@@ -113,12 +113,12 @@ class Particles():
                     
             
             if fusionCandidate == -1:
-                if fusionCount >= constants.MIN_PARTICLES_FOR_FUSION:
+                if fusionCount >= constants.MIN_PARTICLES_FOR_FUSION:# and currentParticleCount < constants.MAX_PARTICLES:
                     fusionCandidate = i
             
             newVelX = velocities[i, 0] + totForceX
             newVelY = velocities[i, 1] + totForceY
-            positions[i] = (posX + newVelX) % constants.SCREEN_WIDTH, (posY + newVelY) % constants.SCREEN_WIDTH
+            positions[i] = (posX + newVelX) % constants.SCREEN_WIDTH, (posY + newVelY) % constants.SCREEN_HEIGHT
 
 
             newVelX *= constants.FRICTION
@@ -144,10 +144,8 @@ class Particles():
         Particles.positions[Particles.CURRENT_PARTICLE_COUNT] = pos
 
         # Ensure arrays are clean
-        newVel = np.array([0, 0], dtype=np.float32)
-        newTypeAndSize = np.array([type, 2])
-        Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = newVel
-        Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = newTypeAndSize
+        Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = np.array([0, 0], dtype=np.float32)
+        Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = np.array([type, 2])
 
         Particles.CURRENT_PARTICLE_COUNT += 1
 
@@ -194,11 +192,11 @@ class Particles():
             closeParticlesDetected += 1
 
             if closeParticlesDetected >= constants.MIN_PARTICLES_FOR_FUSION:
-                sizeSum = np.sum(closeSizes)
-                sizeSum += typesAndSizes[index, 1]
+                newSize = np.sum(closeSizes)
+                newSize += typesAndSizes[index, 1]
 
                 # Ceiled division so fusion results in a larger particle under more conditions
-                sizeSum = (sizeSum + (constants.MIN_PARTICLES_FOR_FUSION) - 1) // (constants.MIN_PARTICLES_FOR_FUSION - 1)
+                newSize = (newSize + (constants.MIN_PARTICLES_FOR_FUSION) - 1) // (constants.MIN_PARTICLES_FOR_FUSION - 1)
                 # sizeSum = sizeSum // (constants.MIN_PARTICLES_FOR_FUSION - 1)
 
                 sum_x = 0.0
@@ -209,7 +207,7 @@ class Particles():
                 averagePos = np.array([sum_x / closeParticlesDetected, sum_y / closeParticlesDetected], dtype=np.float64)
 
 
-                return closeIndices, averagePos, sizeSum
+                return closeIndices, averagePos, newSize
 
         # Not enough close particles for fusion
         return closeIndices, np.zeros(2, dtype=np.float64), -1
@@ -248,6 +246,8 @@ class Particles():
     
     @staticmethod
     def handleFission(pos, fType, quantity):
+        # TODO: change
+        
         # No fission this frame
         if fType < 0:
             return
@@ -280,6 +280,8 @@ class Particles():
         screenLock = pygame.surfarray.pixels2d(constants.SCREEN)
         for i in range(Particles.CURRENT_PARTICLE_COUNT):
             color = Particles.colors[Particles.typesAndSizes[i, 0]]
+            rawSize = Particles.typesAndSizes[i, 1]
+            # size = max(1, ((rawSize * 5)-10) / (rawSize + 5))
             pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), Particles.typesAndSizes[i, 1])
         del screenLock
 
