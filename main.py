@@ -2,7 +2,7 @@ from simulation import Simulation
 import cProfile
 import pstats
 
-def runSimulation(): 
+def runSimulation():
     simulation = Simulation.get_instance()
     
     simulation.run()

@@ -160,7 +160,7 @@ class Particles():
             Particles.spawnIteration -= 1
 
 
-    @jit(types.Tuple((types.int32[:], types.float64[:], types.int64))(types.int64, types.float64[:, :], types.int32[:, :], types.int64), nopython=True)
+    @jit(types.Tuple((types.int32[:], types.float64[:], types.int64))(types.int64, types.float64[:, :], types.int64[:, :], types.int64), nopython=True)
     def detectFusionIndices(index, positions, typesAndSizes, currentParticleCount):
         """ Determine the particles that will be removed during fusion
             Return particle indices for removal, avgPos (new particle spawn point), and particle type undergoing fusion
@@ -195,7 +195,7 @@ class Particles():
                 newSize += typesAndSizes[index, 1]
 
                 # Ceiled division so fusion results in a larger particle under more conditions
-                newSize = (newSize + (constants.MIN_PARTICLES_FOR_FUSION) - 1) // (constants.MIN_PARTICLES_FOR_FUSION - 1)
+                newSize = (newSize + (constants.MIN_PARTICLES_FOR_FUSION - 1)) // (constants.MIN_PARTICLES_FOR_FUSION - 1)
                 # sizeSum = sizeSum // (constants.MIN_PARTICLES_FOR_FUSION - 1)
 
                 sum_x = 0.0

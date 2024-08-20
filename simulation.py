@@ -1,5 +1,7 @@
 import constants
+from constants import Constants
 from particles import Particles
+from quadtree import Quadtree, Rectangle
 import pygame
 import time
 import sys
@@ -57,8 +59,8 @@ class Simulation:
             self.performanceMonitor = PerformanceMonitor(constants.MONITOR_INTERVAL) # Interval in seconds
             self.performanceMonitor.start()
 
-            # Event to handle killing thread on program end
-            self.velThreadStopEvent = threading.Event()
+            # # Event to handle killing thread on program end
+            # self.velThreadStopEvent = threading.Event()
 
     @staticmethod
     def get_instance():
@@ -184,6 +186,14 @@ class Simulation:
         print(f"Initial values: Pos {Particles.positions} | Vel {Particles.velocities} | TypesEtc {Particles.typesAndSizes}")
 
         
+        Constants.PARTICLE_QUADTREE = Quadtree(Rectangle(0, 0, constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT))
+        Constants.PARTICLE_QUADTREE.batchInsert(Particles.positions)
+
+        self.quadtreeUpdator = QuadtreeUpdator()
+        self.quadtreeUpdator.start()
+
+        # Event to handle killing thread on program end
+        # self.velThreadStopEvent = threading.Event()
 
         running = True
         while running:
@@ -212,28 +222,18 @@ class Simulation:
             
             inputPos, inputVel, inputTypesAndSizes = Particles.getParticleInfo()
             fusionCandidate, fissionPosition, fissionType, fissionQuantity = Particles.updateParticles(inputPos, inputVel, inputTypesAndSizes, Particles.splitTimers, Particles.__particleAttractions, Particles.CURRENT_PARTICLE_COUNT)
-            # Particles.splitTimers[:Particles.CURRENT_PARTICLE_COUNT] = splitTimersUntrimmed[:Particles.CURRENT_PARTICLE_COUNT]
             
-            # Particles.splitTimers = splitTimersUntrimmed
-            # print(f"JUST UPDATED: Fusion {fusionCandidate} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
-            # print(f"Just updated: fission {fissionPositionsTypesAndQuantities} ")#| split {Particles.splitTimers[:Particles.CURRENT_PARTICLE_COUNT]}")#{newTypesSizesAndSplitTimersUntrimmed}")#fissionParticle {fissionParticles}")
-            # for i in newTypesSizesAndSplitTimersUntrimmed:
-            #     print(i)
             if fusionCandidate >= 0:
                 indices, avgPos, newSize = Particles.detectFusionIndices(fusionCandidate, Particles.positions, inputTypesAndSizes, Particles.CURRENT_PARTICLE_COUNT)
 
                 # Commence fusion
                 if newSize > 0:
-                    # print(f"IN FUSION")
 
                     # Remove small particles
                     newPos, newVel, newTypesAndSizes, newSplitTimers, pType = Particles.removeParticlesForFusion(indices)
-                    # print(f"Out of remove by indices: Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(newPos)}) {newPos} | Vel ({len(newVel)}) {newVel} | TypeandSize ({len(newTypesAndSizes)}) {newTypesAndSizes}")
-            
+                    
 
                     Particles.positions, Particles.velocities, Particles.typesAndSizes, Particles.splitTimers = newPos, newVel, newTypesAndSizes, newSplitTimers
-
-                    # print(f"Out of remove by indices: Ptype: {pType} | Pcount {Particles.CURRENT_PARTICLE_COUNT} | Pos ({len(Particles.positions)}) {Particles.positions} | Vel ({len(Particles.velocities)}) {Particles.velocities} | TypeandSize ({len(Particles.typesAndSizes)}) {Particles.typesAndSizes}")
 
 
                     # Add large particle
@@ -252,6 +252,15 @@ class Simulation:
             # self.drawMouseCircle()
             
             Particles.spawnParticlePeriodically()
+
+            # # Update quadtree
+            # quadStart = time.time()
+            # Constants.PARTICLE_QUADTREE.clear()
+            # Constants.PARTICLE_QUADTREE.batchInsert(Particles.positions)
+
+            # quadEnd = time.time()
+            # print(f"Quad updated in {quadEnd - quadStart} s")
+
             
             Particles.draw()
             
@@ -273,6 +282,8 @@ class Simulation:
             
         self.performanceMonitor.stop()
         self.performanceMonitor.join()
+        self.quadtreeUpdator.stop()
+        self.quadtreeUpdator.join()
 
         
         pygame.quit()
@@ -292,7 +303,52 @@ class Simulation:
 
         self.frame_print_time = time.time()
             
+
+class QuadtreeUpdator(threading.Thread):
+    def __init__(self, interval=0):
+        super().__init__()
+        self.stopped = threading.Event()
+        self.process = psutil.Process()
+        self.daemon = True # Exit thread upon game quit
+        self.interval = interval
+        self.activeBuffer = -1
+        self.updates = []
+        Constants.PARTICLE_QUADTREE_DOUBLE_BUFFER = []
     
+    def run(self):
+        # Lower thread priority
+        self.process.nice(psutil.IDLE_PRIORITY_CLASS)
+
+
+        frameCount = 0
+            
+        while not self.stopped.wait(self.interval):
+            self.updateParticleQuadtree()
+            if frameCount % 5 == 0:  # Update every 5 frames
+                self.updateParticleQuadtree()
+            frameCount += 1
+            time.sleep(0.05)
+    
+    def updateParticleQuadtree(self):
+        # Update quadtree
+        quadStart = time.time()
+        Constants.PARTICLE_QUADTREE.clear()
+        Constants.PARTICLE_QUADTREE.batchInsert(Particles.positions)
+
+        quadEnd = time.time()
+        # print(f"Quad updated in {quadEnd - quadStart} s")
+        self.updates.append(quadEnd)
+
+        # Report average time for n updates
+        if len(self.updates) == 10:
+            print(f"Time for {len(self.updates)} quadtree updates: {self.updates[len(self.updates)-1] - self.updates[0]} s")
+            self.updates = []
+        time.sleep(0)
+
+    def stop(self):
+        self.stopped.set()
+
+
     
 class PerformanceMonitor(threading.Thread):
     def __init__(self, interval):
