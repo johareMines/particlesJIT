@@ -2,6 +2,7 @@ import numpy as np
 from enum import Enum
 from numba import jit, types
 import constants
+from constants import Constants
 import pygame
 import random
 
@@ -121,6 +122,7 @@ class Particles():
             positions[i] = (posX + newVelX) % constants.SCREEN_WIDTH, (posY + newVelY) % constants.SCREEN_HEIGHT
 
 
+
             newVelX *= constants.FRICTION
             newVelY *= constants.FRICTION
 
@@ -228,6 +230,8 @@ class Particles():
             del velList[index]
             del typesAndSizesList[index]
             del splitTimersList[index]
+            # Update quadtree
+            
             Particles.CURRENT_PARTICLE_COUNT -= 1
         
         newPositions = np.zeros((constants.MAX_PARTICLES, 2), dtype=Particles.positions.dtype)
@@ -276,12 +280,20 @@ class Particles():
         
         
         # Lock the surface to avoid unnecessary state changes
+        # screenLock = pygame.surfarray.pixels2d(constants.SCREEN)
+        # for i in range(Particles.CURRENT_PARTICLE_COUNT):
+        #     color = Particles.colors[Particles.typesAndSizes[i, 0]]
+        #     rawSize = Particles.typesAndSizes[i, 1]
+        #     # size = max(1, ((rawSize * 5)-10) / (rawSize + 5))
+        #     pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), Particles.typesAndSizes[i, 1])
+        # del screenLock
+
         screenLock = pygame.surfarray.pixels2d(constants.SCREEN)
-        for i in range(Particles.CURRENT_PARTICLE_COUNT):
-            color = Particles.colors[Particles.typesAndSizes[i, 0]]
-            rawSize = Particles.typesAndSizes[i, 1]
+        for p in Constants.PARTICLE_QUADTREE.insertionOrder:
+            color = Particles.colors[Particles.typesAndSizes[p.index, 0]]
+            rawSize = Particles.typesAndSizes[p.index, 1]
             # size = max(1, ((rawSize * 5)-10) / (rawSize + 5))
-            pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), Particles.typesAndSizes[i, 1])
+            pygame.draw.circle(constants.SCREEN, color, (Particles.positions[p.index, 0], Particles.positions[p.index, 1]), Particles.typesAndSizes[p.index, 1])
         del screenLock
 
     

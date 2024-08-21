@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 import uuid
 import json
 import os
+import asyncio
 
 class Simulation:
     __instance = None
@@ -56,11 +57,10 @@ class Simulation:
             self.frame_times = []
             self.frame_print_time = time.time()
 
-            self.performanceMonitor = PerformanceMonitor(constants.MONITOR_INTERVAL) # Interval in seconds
-            self.performanceMonitor.start()
+            self.quadtree_updator = AsyncQuadtreeUpdator(interval = 0.1)
+            self.performanceMonitor = AsyncPerformanceMonitor(interval=constants.MONITOR_INTERVAL)
+            
 
-            # # Event to handle killing thread on program end
-            # self.velThreadStopEvent = threading.Event()
 
     @staticmethod
     def get_instance():
@@ -173,7 +173,9 @@ class Simulation:
         
 
 
-    def run(self):
+    async def run(self):
+        
+
         # Initialize empty np arrays
         Particles.__particleAttractions = Particles.setAttractions()
         Particles.positions = (np.random.rand(constants.MAX_PARTICLES, 2) * [constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT]).astype(np.float64)
@@ -187,13 +189,14 @@ class Simulation:
 
         
         Constants.PARTICLE_QUADTREE = Quadtree(Rectangle(0, 0, constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT))
-        Constants.PARTICLE_QUADTREE.batchInsert(Particles.positions)
+        Constants.PARTICLE_QUADTREE.batchInsert(Particles.positions[:Particles.CURRENT_PARTICLE_COUNT])
 
-        self.quadtreeUpdator = QuadtreeUpdator()
-        self.quadtreeUpdator.start()
+        # Start the async quadtree updater
+        asyncio.create_task(self.quadtree_updator.run())
+        asyncio.create_task(self.performanceMonitor.run())
+        # self.quadtreeUpdator = QuadtreeUpdator()
+        # self.quadtreeUpdator.start()
 
-        # Event to handle killing thread on program end
-        # self.velThreadStopEvent = threading.Event()
 
         running = True
         while running:
@@ -251,7 +254,7 @@ class Simulation:
             # Draw circle at mouse position
             # self.drawMouseCircle()
             
-            Particles.spawnParticlePeriodically()
+            # Particles.spawnParticlePeriodically()
 
             # # Update quadtree
             # quadStart = time.time()
@@ -277,17 +280,17 @@ class Simulation:
             if len(self.frame_times) > 70:
                 self.frame_times.pop(0)
             self.calculateFramerate()
+
+            # Keep event loop running
+            await asyncio.sleep(0)
             
             
             
         self.performanceMonitor.stop()
-        self.performanceMonitor.join()
-        self.quadtreeUpdator.stop()
-        self.quadtreeUpdator.join()
-
+        self.quadtree_updator.stop()
         
         pygame.quit()
-        sys.exit()
+        # sys.exit()
         
     
     def calculateFramerate(self):
@@ -302,77 +305,102 @@ class Simulation:
         print(f"FPS: {round(fps, 1)}")
 
         self.frame_print_time = time.time()
-            
 
-class QuadtreeUpdator(threading.Thread):
+
+class AsyncQuadtreeUpdator:
     def __init__(self, interval=0):
-        super().__init__()
-        self.stopped = threading.Event()
-        self.process = psutil.Process()
-        self.daemon = True # Exit thread upon game quit
         self.interval = interval
         self.activeBuffer = -1
         self.updates = []
-        Constants.PARTICLE_QUADTREE_DOUBLE_BUFFER = []
-    
-    def run(self):
-        # Lower thread priority
-        self.process.nice(psutil.IDLE_PRIORITY_CLASS)
+        self.running = False
+        self.executor = ThreadPoolExecutor(max_workers=4)
+        
+
+    async def run(self):
+        self.running = True
+        while self.running:
+            await self.update_particle_quadtree()
+            await asyncio.sleep(self.interval)  # Yield control back to the event loop
 
 
-        frameCount = 0
-            
-        while not self.stopped.wait(self.interval):
-            self.updateParticleQuadtree()
-            if frameCount % 5 == 0:  # Update every 5 frames
-                self.updateParticleQuadtree()
-            frameCount += 1
-            time.sleep(0.05)
-    
-    def updateParticleQuadtree(self):
+    # async def update_particle_quadtree(self):
+    #     # Update quadtree using ThreadPoolExecutor
+    #     loop = asyncio.get_event_loop()
+    #     await loop.run_in_executor(self.executor, self._sync_update_particle_quadtree)
+    #     quad_end = time.time()
+    #     self.updates.append(quad_end)
+
+    #     # Report average time for n updates
+    #     if len(self.updates) == 10:
+    #         print(f"Time for {len(self.updates)} quadtree updates: {self.updates[-1] - self.updates[0]} s")
+    #         self.updates = []
+
+    # def _sync_update_particle_quadtree(self):
+    #     # Synchronous function to clear and batch insert particles in the quadtree
+    #     Constants.PARTICLE_QUADTREE.clear()
+    #     Constants.PARTICLE_QUADTREE.batchInsert(Particles.positions)
+
+        ####
+    async def update_particle_quadtree(self):
         # Update quadtree
-        quadStart = time.time()
-        Constants.PARTICLE_QUADTREE.clear()
-        Constants.PARTICLE_QUADTREE.batchInsert(Particles.positions)
+        startTime = time.time()
+        # Constants.PARTICLE_QUADTREE.clear()
+        # Constants.PARTICLE_QUADTREE.batchInsert(Particles.positions[:Particles.CURRENT_PARTICLE_COUNT])
+        Constants.PARTICLE_QUADTREE.batchUpdate()
 
-        quadEnd = time.time()
-        # print(f"Quad updated in {quadEnd - quadStart} s")
-        self.updates.append(quadEnd)
+        endTime = time.time()
+
+        print(f"This one was {endTime - startTime} s")
+        self.updates.append(endTime)
+
+        print(f"Populated quadtree of length {len(Constants.PARTICLE_QUADTREE.insertionOrder)}")
+
+        # for p in Constants.PARTICLE_QUADTREE.insertionOrder:
+        #     print(f"{p.index}")
+        
+        
+        # # query whole quadtree
+        # queryRegion = Rectangle(0, 0, constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT)
+        # queryResults = Constants.PARTICLE_QUADTREE.query(queryRegion)
+
+        # print("\nAll points in quadtree:")
+        # for point in queryResults:
+        #     print(point.index)
 
         # Report average time for n updates
         if len(self.updates) == 10:
-            print(f"Time for {len(self.updates)} quadtree updates: {self.updates[len(self.updates)-1] - self.updates[0]} s")
+            print(f"Time for {len(self.updates)} quadtree updates: {self.updates[-1] - self.updates[0]} s")
             self.updates = []
-        time.sleep(0)
 
     def stop(self):
-        self.stopped.set()
-
-
+        self.running = False
+        self.executor.shutdown(wait=True)
     
-class PerformanceMonitor(threading.Thread):
+class AsyncPerformanceMonitor:
     def __init__(self, interval):
         super().__init__()
         self.interval = interval
-        self.stopped = threading.Event()
+        self.running = False
         self.process = psutil.Process()
 
-    def run(self):
-        while not self.stopped.wait(self.interval):
-            self.monitorCPU()
-            self.monitorMemory()
-            self.monitorParticleCount()
+    async def run(self):
+        self.running = True
+        while self.running:
+            await self.monitorCPU()
+            await self.monitorMemory()
+            await self.monitorParticleCount()
+            await asyncio.sleep(self.interval)
 
-    def monitorCPU(self):
+    async def monitorCPU(self):
         cpu_percent = self.process.cpu_percent()
         print(f"CPU usage: {cpu_percent}%")
     
-    def monitorMemory(self):
+    async def monitorMemory(self):
         memory_info = self.process.memory_info()
         print(f"Memory Usage: {memory_info.rss / (1024 * 1024)} MB")  # Convert to MB
     
-    def monitorParticleCount(self):
+    async def monitorParticleCount(self):
         print(f"Particle Count: {Particles.CURRENT_PARTICLE_COUNT}")
     
     def stop(self):
-        self.stopped.set()
+        self.running = False
