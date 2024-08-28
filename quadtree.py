@@ -9,13 +9,10 @@ from concurrent.futures import ThreadPoolExecutor
 import logging
 from sortedcontainers import SortedSet
 from particles import Particles
+from point import Point
 
 
 
-class Point:
-    def __init__(self, position, index):
-        self.position = np.array(position)
-        self.index = index
 
 class Quadtree:
     def __init__(self, boundary, capacity=10, depth=0, max_depth=10, insertionOrder=None):
@@ -67,17 +64,19 @@ class Quadtree:
                 # print(f"Node at depth {self.depth} is full, subdividing...")
                 self.subdivide()
 
-            # Try to insert the point into the appropriate child node
-            inserted = (
-                self.nw.insert(point) or 
-                self.ne.insert(point) or 
-                self.sw.insert(point) or 
-                self.se.insert(point)
-            )
+            # Redistribute points to child nodes
+            inserted = False
+            for child in (self.nw, self.ne, self.sw, self.se):
+                if child.insert(point):
+                    inserted = True
+                    break
+
 
             if inserted:
                 # Append the point to the insertion order only if successfully inserted into a child
-                self.insertionOrder.add (point)
+                self.insertionOrder.add(point)
+            else:
+                print(f"Failed to insert point {point.index}")
 
             return inserted
         except Exception as e:
@@ -164,16 +163,27 @@ class Quadtree:
         # print(f"Subdivided into nw, ne, sw, se at depth {self.depth + 1}")
         self.is_leaf = False
 
-        # Redistribute to child nodes
+        # Redistribute points to child nodes
         for point in self.points:
-            inserted = (
-                self.nw.insert(point) or 
-                self.ne.insert(point) or 
-                self.sw.insert(point) or 
-                self.se.insert(point)
-            )
+            inserted = False
+            for child in (self.nw, self.ne, self.sw, self.se):
+                if child.insert(point):
+                    inserted = True
+                    break  # Exit loop once the point is successfully inserted
+
             if not inserted:
-                print(f"Failed to insert point {point.position} at depth {self.depth + 1}")
+                print(f"Failed to insert point {point.index} at depth {self.depth + 1}")
+                # exit(1)
+        # # Redistribute to child nodes
+        # for point in self.points:
+        #     inserted = (
+        #         self.nw.insert(point) or 
+        #         self.ne.insert(point) or 
+        #         self.sw.insert(point) or 
+        #         self.se.insert(point)
+        #     )
+        #     if not inserted:
+        #         print(f"Failed to insert point {point.index} at depth {self.depth + 1}")
         
         self.points = []
         # print(f"Cleared points in parent node at depth {self.depth}")

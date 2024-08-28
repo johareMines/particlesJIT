@@ -5,6 +5,7 @@ import constants
 from constants import Constants
 import pygame
 import random
+from point import Point
 
 
 # Methods for all particles
@@ -136,7 +137,6 @@ class Particles():
         # Prevent buffer overflow
         if Particles.CURRENT_PARTICLE_COUNT >= constants.MAX_PARTICLES:
             # print(f"Attempted to spawn particle when limit was reached")
-            Particles.spawnIteration = Particles.SPAWN_ITERATION * 5
             return
         
         # Ensure particles never have the exact same pos
@@ -149,12 +149,26 @@ class Particles():
         Particles.velocities[Particles.CURRENT_PARTICLE_COUNT] = np.array([0, 0], dtype=np.float32)
         Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = np.array([type, 2])
 
+        print(f"Last before insert: {Constants.PARTICLE_QUADTREE.insertionOrder[-1].index}")
+        newPoint = Point(pos, Particles.CURRENT_PARTICLE_COUNT)
+        worked = Constants.PARTICLE_QUADTREE.insert(newPoint)
+        print(f"New particle added to quadtree last is now: {Constants.PARTICLE_QUADTREE.insertionOrder[-1].index}")
+        if not worked:
+            exit(1)
         Particles.CURRENT_PARTICLE_COUNT += 1
+
+        
+
+
 
 
     @staticmethod
     def spawnParticlePeriodically():
         if Particles.spawnIteration == 0:
+            if Particles.CURRENT_PARTICLE_COUNT >= constants.MAX_PARTICLES:
+                Particles.spawnIteration = Particles.SPAWN_ITERATION * 5
+                return
+            
             Particles.spawnParticle(np.array([constants.SCREEN_WIDTH // 2, constants.SCREEN_HEIGHT // 2], dtype=np.float64), random.randint(0, constants.PARTICLE_TYPE_COUNT - 1))
 
             Particles.spawnIteration = Particles.SPAWN_ITERATION
@@ -230,8 +244,16 @@ class Particles():
             del velList[index]
             del typesAndSizesList[index]
             del splitTimersList[index]
+
             # Update quadtree
-            
+            Constants.PARTICLE_QUADTREE.remove(Constants.PARTICLE_QUADTREE.insertionOrder[index])
+            del Constants.PARTICLE_QUADTREE.insertionOrder[index]
+            # Shift index of all following points
+            for p in Constants.PARTICLE_QUADTREE.insertionOrder[index:]:
+                p.index -= 1
+
+            # print(f"Deleted index {index}: the surrounding indices are {Constants.PARTICLE_QUADTREE.insertionOrder[index-1].index} | {Constants.PARTICLE_QUADTREE.insertionOrder[index].index} | {Constants.PARTICLE_QUADTREE.insertionOrder[index+1].index}")
+            # print(f"Last point is index {Constants.PARTICLE_QUADTREE.insertionOrder[len(Constants.PARTICLE_QUADTREE.insertionOrder) - 1].index}")
             Particles.CURRENT_PARTICLE_COUNT -= 1
         
         newPositions = np.zeros((constants.MAX_PARTICLES, 2), dtype=Particles.positions.dtype)
@@ -280,21 +302,14 @@ class Particles():
         
         
         # Lock the surface to avoid unnecessary state changes
-        # screenLock = pygame.surfarray.pixels2d(constants.SCREEN)
-        # for i in range(Particles.CURRENT_PARTICLE_COUNT):
-        #     color = Particles.colors[Particles.typesAndSizes[i, 0]]
-        #     rawSize = Particles.typesAndSizes[i, 1]
-        #     # size = max(1, ((rawSize * 5)-10) / (rawSize + 5))
-        #     pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), Particles.typesAndSizes[i, 1])
-        # del screenLock
-
         screenLock = pygame.surfarray.pixels2d(constants.SCREEN)
-        for p in Constants.PARTICLE_QUADTREE.insertionOrder:
-            color = Particles.colors[Particles.typesAndSizes[p.index, 0]]
-            rawSize = Particles.typesAndSizes[p.index, 1]
-            # size = max(1, ((rawSize * 5)-10) / (rawSize + 5))
-            pygame.draw.circle(constants.SCREEN, color, (Particles.positions[p.index, 0], Particles.positions[p.index, 1]), Particles.typesAndSizes[p.index, 1])
+        for i in range(Particles.CURRENT_PARTICLE_COUNT):
+            color = Particles.colors[Particles.typesAndSizes[i, 0]]
+            # rawSize = Particles.typesAndSizes[i, 1]
+            
+            pygame.draw.circle(constants.SCREEN, color, (Particles.positions[i, 0], Particles.positions[i, 1]), Particles.typesAndSizes[i, 1])
         del screenLock
+
 
     
     @staticmethod

@@ -254,7 +254,7 @@ class Simulation:
             # Draw circle at mouse position
             # self.drawMouseCircle()
             
-            # Particles.spawnParticlePeriodically()
+            Particles.spawnParticlePeriodically()
 
             # # Update quadtree
             # quadStart = time.time()
@@ -308,7 +308,7 @@ class Simulation:
 
 
 class AsyncQuadtreeUpdator:
-    def __init__(self, interval=0):
+    def __init__(self, interval=0.001):
         self.interval = interval
         self.activeBuffer = -1
         self.updates = []
@@ -350,22 +350,22 @@ class AsyncQuadtreeUpdator:
 
         endTime = time.time()
 
-        print(f"This one was {endTime - startTime} s")
         self.updates.append(endTime)
 
-        print(f"Populated quadtree of length {len(Constants.PARTICLE_QUADTREE.insertionOrder)}")
+        print(f"Populated quadtree of length {len(Constants.PARTICLE_QUADTREE.insertionOrder)} in {endTime - startTime} s")
 
-        # for p in Constants.PARTICLE_QUADTREE.insertionOrder:
-        #     print(f"{p.index}")
+        for p in Constants.PARTICLE_QUADTREE.insertionOrder:
+            print(f"{p.index}")
         
         
-        # # query whole quadtree
-        # queryRegion = Rectangle(0, 0, constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT)
-        # queryResults = Constants.PARTICLE_QUADTREE.query(queryRegion)
+        # query whole quadtree
+        queryRegion = Rectangle(0, 0, constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT)
+        queryResults = Constants.PARTICLE_QUADTREE.query(queryRegion)
 
-        # print("\nAll points in quadtree:")
-        # for point in queryResults:
-        #     print(point.index)
+        print(f"\nAll points in quadtree full query: {len(queryResults)} points")
+        print(f"Max index is {max(p.index for p in queryResults)}")
+        for point in queryResults:
+            print(point.index)
 
         # Report average time for n updates
         if len(self.updates) == 10:
