@@ -248,7 +248,7 @@ class Simulation:
                     Particles.CURRENT_PARTICLE_COUNT += 1
             
             
-            Particles.handleFission(fissionPosition, fissionType, fissionQuantity)
+            # Particles.handleFission(fissionPosition, fissionType, fissionQuantity)
 
 
             # Draw circle at mouse position
@@ -346,6 +346,7 @@ class AsyncQuadtreeUpdator:
         startTime = time.time()
         # Constants.PARTICLE_QUADTREE.clear()
         # Constants.PARTICLE_QUADTREE.batchInsert(Particles.positions[:Particles.CURRENT_PARTICLE_COUNT])
+        
         Constants.PARTICLE_QUADTREE.batchUpdate()
 
         endTime = time.time()
@@ -354,18 +355,19 @@ class AsyncQuadtreeUpdator:
 
         print(f"Populated quadtree of length {len(Constants.PARTICLE_QUADTREE.insertionOrder)} in {endTime - startTime} s")
 
-        for p in Constants.PARTICLE_QUADTREE.insertionOrder:
-            print(f"{p.index}")
+        # for p in Constants.PARTICLE_QUADTREE.insertionOrder:
+        #     print(f"{p.index}")
         
         
         # query whole quadtree
         queryRegion = Rectangle(0, 0, constants.SCREEN_WIDTH, constants.SCREEN_HEIGHT)
         queryResults = Constants.PARTICLE_QUADTREE.query(queryRegion)
 
-        print(f"\nAll points in quadtree full query: {len(queryResults)} points")
-        print(f"Max index is {max(p.index for p in queryResults)}")
-        for point in queryResults:
-            print(point.index)
+        print(f"\nAll points in quadtree full query: {len(queryResults)} points. Max index is {max(p.index for p in queryResults)}")
+        # for point in queryResults:
+        #     print(point.index)
+        
+        print(f"Current particle count: {Particles.CURRENT_PARTICLE_COUNT}")
 
         # Report average time for n updates
         if len(self.updates) == 10:

@@ -150,11 +150,10 @@ class Particles():
         Particles.typesAndSizes[Particles.CURRENT_PARTICLE_COUNT] = np.array([type, 2])
 
         print(f"Last before insert: {Constants.PARTICLE_QUADTREE.insertionOrder[-1].index}")
-        newPoint = Point(pos, Particles.CURRENT_PARTICLE_COUNT)
-        worked = Constants.PARTICLE_QUADTREE.insert(newPoint)
+        newPoint = Point(pos[:], Particles.CURRENT_PARTICLE_COUNT)
+        Constants.PARTICLE_QUADTREE.insert(newPoint)
         print(f"New particle added to quadtree last is now: {Constants.PARTICLE_QUADTREE.insertionOrder[-1].index}")
-        if not worked:
-            exit(1)
+        
         Particles.CURRENT_PARTICLE_COUNT += 1
 
         
@@ -176,7 +175,7 @@ class Particles():
             Particles.spawnIteration -= 1
 
 
-    @jit(types.Tuple((types.int32[:], types.float64[:], types.int64))(types.int64, types.float64[:, :], types.int64[:, :], types.int64), nopython=True)
+    @jit(types.Tuple((types.int32[:], types.float64[:], types.int64))(types.int64, types.float64[:, :], types.int32[:, :], types.int64), nopython=True)
     def detectFusionIndices(index, positions, typesAndSizes, currentParticleCount):
         """ Determine the particles that will be removed during fusion
             Return particle indices for removal, avgPos (new particle spawn point), and particle type undergoing fusion
@@ -246,12 +245,19 @@ class Particles():
             del splitTimersList[index]
 
             # Update quadtree
+            # print(f"Quad before fusion removal")
+            # for p in Constants.PARTICLE_QUADTREE.insertionOrder:
+            #     print(f"{p.index}")
             Constants.PARTICLE_QUADTREE.remove(Constants.PARTICLE_QUADTREE.insertionOrder[index])
-            del Constants.PARTICLE_QUADTREE.insertionOrder[index]
+            # del Constants.PARTICLE_QUADTREE.insertionOrder[Constants.PARTICLE_QUADTREE.insertionOrder[index]]
+            # Constants.PARTICLE_QUADTREE.insertionOrder.remove(particleToRemove)
             # Shift index of all following points
             for p in Constants.PARTICLE_QUADTREE.insertionOrder[index:]:
                 p.index -= 1
 
+            # print(f"Quad after fusion removal")
+            # for p in Constants.PARTICLE_QUADTREE.insertionOrder:
+            #     print(f"{p.index}")
             # print(f"Deleted index {index}: the surrounding indices are {Constants.PARTICLE_QUADTREE.insertionOrder[index-1].index} | {Constants.PARTICLE_QUADTREE.insertionOrder[index].index} | {Constants.PARTICLE_QUADTREE.insertionOrder[index+1].index}")
             # print(f"Last point is index {Constants.PARTICLE_QUADTREE.insertionOrder[len(Constants.PARTICLE_QUADTREE.insertionOrder) - 1].index}")
             Particles.CURRENT_PARTICLE_COUNT -= 1

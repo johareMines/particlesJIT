@@ -15,7 +15,7 @@ from point import Point
 
 
 class Quadtree:
-    def __init__(self, boundary, capacity=10, depth=0, max_depth=10, insertionOrder=None):
+    def __init__(self, boundary, capacity=5, depth=0, max_depth=20, insertionOrder=None):
         self.boundary = boundary
         self.capacity = capacity
         self.depth = depth
@@ -35,15 +35,15 @@ class Quadtree:
         # self.lock = RLock()#threading.Lock()
 
 
-    def clear(self):
-        self.points = []
-        self.insertionOrder.clear()
-        self.divided = False
-        self.is_leaf = True
-        self.nw = None
-        self.ne = None
-        self.sw = None
-        self.se = None
+    # def clear(self):
+    #     self.points = []
+    #     self.insertionOrder.clear()
+    #     self.divided = False
+    #     self.is_leaf = True
+    #     self.nw = None
+    #     self.ne = None
+    #     self.sw = None
+    #     self.se = None
 
     def insert(self, point):
         try:
@@ -85,7 +85,8 @@ class Quadtree:
 
     def batchInsert(self, positions):
         for i, pos in enumerate(positions):
-            p = Point(pos, i)
+            inputPos = pos[:]
+            p = Point(inputPos, i)
             self.insert(p)
         
     # def update(self, point):
@@ -94,19 +95,42 @@ class Quadtree:
     #     return False
 
     def update(self, point):
-        newPos = Particles.positions[point.index]
+        newPos = np.copy(Particles.positions[point.index])
+        
 
-        # Check if point is still within boundary of current node
-        if self.boundary.contains(newPos):
-            point.position = newPos
-        else: # Handle reinsertion
-            self.remove(point)
-            
-            # Update the point's position to the new one
-            point.position = newPos
-            
-            # Reinsert the point into the quadtree, it will automatically find the correct node
-            Constants.PARTICLE_QUADTREE.insert(point)
+        # If the current node is not a leaf, delegate the update to the appropriate child node
+        if not self.is_leaf:
+            # Update in the correct child node
+            for child in (self.nw, self.ne, self.sw, self.se):
+                if child.boundary.contains(point.position):
+                    child.update(point)
+                    return
+            # If the point doesn't fit in any child (which shouldn't happen), handle it here
+            print(f"Point {point.index} at position {newPos} doesn't fit into any child node. ISSUE.")
+            exit(0)
+        else:
+            # If the point is still within the current node's boundary, just update its position
+            if self.boundary.contains(newPos):
+                # print(f"Normal movement {point.index} from {point.position} to {newPos} is still within boundary({self.boundary.toString()})")
+                point.position = newPos
+            else:  # Handle reinsertion
+                print(f"Update reinsert of point {point.index} at {point.position}, moving to new position {newPos}")
+                Constants.PARTICLE_QUADTREE.remove(point)
+                
+                # print(f"Points in quadran {self.boundary.toString()} after removal")
+                # for p in self.points:
+                #     print(f"{p.index}: {p.position}")
+                # for p in self.insertionOrder:
+                #     print(f"Insertion order: {p.index}")
+                
+                # Update the point's position to the new one
+                point.position = newPos
+                
+                # Reinsert the point into the quadtree, it will automatically find the correct node
+                insertWorked = Constants.PARTICLE_QUADTREE.insert(point)
+                if not insertWorked:
+                    print(f"!!! ISSUE Insert didn't work after removal for particle {point.index}")
+
 
 
     # Update all points
@@ -116,11 +140,27 @@ class Quadtree:
         
 
     def remove(self, point):
+        # if not Constants.PARTICLE_QUADTREE.boundary.contains(point.position):
+        #     return False
+        
+        # if point in Constants.PARTICLE_QUADTREE.points
         if not self.boundary.contains(point.position):
             return False
 
         if point in self.points:
+            
+            print(f"Attempting removal on point {point.index} in boundary {self.boundary.toString()}. It currently contains:")
+            for p in self.insertionOrder:
+                print(f"{p.index} | {p.position}")
+            print(f"Actual points list is")
+            for p in self.points:
+                print(f"!{p.index} | {p.position}")
+            
             self.points.remove(point)
+            self.insertionOrder.remove(point)
+            print(f"Len after deletion is {len(self.points)} | {len(self.insertionOrder)}")
+            # else:
+            #     print(f"!!!Warning: Point {point.index} not found in insertionOrder during removal.")
             return True
 
         if not self.is_leaf:
@@ -150,11 +190,15 @@ class Quadtree:
         if not self.is_leaf:
             # print("Already subdivided, returning")
             return
-            
+        
+        print(f"SUBDIVIDING")
+        for p in self.points:
+            print (f"{p.index} | {p.position}")
         min_x, min_y, max_x, max_y = self.boundary.min_x, self.boundary.min_y, self.boundary.max_x, self.boundary.max_y
         mid_x = (min_x + max_x) / 2
         mid_y = (min_y + max_y) / 2
 
+        print(f"Boundaries: {min_x}, {max_x}, {min_y}, {max_y}")
         self.nw = Quadtree(Rectangle(min_x, min_y, mid_x, mid_y), self.capacity, self.depth + 1, self.max_depth, self.insertionOrder)
         self.ne = Quadtree(Rectangle(mid_x, min_y, max_x, mid_y), self.capacity, self.depth + 1, self.max_depth, self.insertionOrder)
         self.sw = Quadtree(Rectangle(min_x, mid_y, mid_x, max_y), self.capacity, self.depth + 1, self.max_depth, self.insertionOrder)
@@ -162,6 +206,8 @@ class Quadtree:
 
         # print(f"Subdivided into nw, ne, sw, se at depth {self.depth + 1}")
         self.is_leaf = False
+        
+        
 
         # Redistribute points to child nodes
         for point in self.points:
@@ -169,23 +215,28 @@ class Quadtree:
             for child in (self.nw, self.ne, self.sw, self.se):
                 if child.insert(point):
                     inserted = True
-                    break  # Exit loop once the point is successfully inserted
+                    break
 
             if not inserted:
-                print(f"Failed to insert point {point.index} at depth {self.depth + 1}")
-                # exit(1)
-        # # Redistribute to child nodes
+                print(f"Point {point.index} at position {point.position} could not be inserted into any child node at depth {self.depth + 1}")
+                print(f"Point boundaries: nw: {self.nw.boundary.toString()}, ne: {self.ne.boundary.toString()}, sw: {self.sw.boundary.toString()}, se: {self.se.boundary.toString()}")
+                raise RuntimeError(f"Failed to insert point {point.index} at depth {self.depth + 1} into any child node")
         # for point in self.points:
-        #     inserted = (
-        #         self.nw.insert(point) or 
-        #         self.ne.insert(point) or 
-        #         self.sw.insert(point) or 
-        #         self.se.insert(point)
-        #     )
+        #     if not any(child.insert(point) for child in (self.nw, self.ne, self.sw, self.se)):
+        #         raise RuntimeError(f"Failed to insert point {point.index} at depth {self.depth + 1} into any child node")
+        
+        # for point in self.points:
+        #     inserted = False
+        #     for child in (self.nw, self.ne, self.sw, self.se):
+        #         if child.insert(point):
+        #             inserted = True
+        #             break  # Exit loop once the point is successfully inserted
+
         #     if not inserted:
         #         print(f"Failed to insert point {point.index} at depth {self.depth + 1}")
         
         self.points = []
+        # self.insertionOrder = SortedSet(key=lambda p: p.index)
         # print(f"Cleared points in parent node at depth {self.depth}")
 
 
@@ -275,14 +326,21 @@ class Rectangle:
         self.max_x = max_x
         self.max_y = max_y
 
+    # def contains(self, position, epsilon=1e-9):
+    #     x, y = position
+    #     return (self.min_x <= x < self.max_x + epsilon and
+    #             self.min_y <= y < self.max_y + epsilon)
     def contains(self, position):
         x, y = position
-        return self.min_x <= x <= self.max_x and self.min_y <= y <= self.max_y
+        return self.min_x <= x < self.max_x and self.min_y <= y < self.max_y
 
     def intersects(self, other):
         return (
             self.min_x <= other.max_x and self.max_x >= other.min_x and
             self.min_y <= other.max_y and self.max_y >= other.min_y
         )
+    
+    def toString(self):
+        return f"Rectangle: w {self.min_x} | e {self.max_x} | s {self.min_y} | n {self.max_y}"
 
 
